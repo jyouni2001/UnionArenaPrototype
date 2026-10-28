@@ -1,0 +1,48 @@
+﻿
+{
+  "cards": [
+    {
+      "cardID": "UA11BT_GNT-1-001",
+      "cardName": "이마이 노부메",
+      "cardColor": 2,
+      "cardType": 2,
+      "bp": 2000,
+      "requiredEnColor": 2,
+      "requiredEnCost": 0,
+      "requiredApCost": 1,
+      "cardTrigger": 9,
+      "effectText": "",
+      "cardFeatures": [
+        ""
+      ],
+      "cardKeywords": [
+        {
+          "cardKeywordType": 0,
+          "value": 0
+        }
+      ]
+    },
+
+    {
+      "cardID": "UA11BT_GNT-1-002",
+      "cardName": "이마이 노부메레이드",
+      "cardColor": 4,
+      "cardType": 5,
+      "bp": 4000,
+      "requiredEnColor": 2,
+      "requiredEnCost": 4,
+      "requiredApCost": 1,
+      "cardTrigger": 9,
+      "effectText": "어택시) 한턴에 한 번 내 프론트 라인에 카드 한 장을 눕이는 것으로 이 카드 엑티브",
+      "cardFeatures": [
+        ""
+      ],
+      "cardKeywords": [
+        {
+          "cardKeywordType": 0,
+          "value": 0
+        }
+      ]
+    }
+  ]
+}
