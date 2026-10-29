@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Manager;
 
+
+// JSON 파일을 읽고 카드 목록을 반환하는 역할
 namespace Data
 {
     // 카드 데이터베이스 읽기
@@ -40,6 +43,13 @@ namespace Data
         // 카드 id로 특정 카드 찾기
         public CardJsonData GetCardByID(string cardID)
         {
+            // return cardList.Find(card => card.CardID == cardID);
+            
+            if (string.IsNullOrWhiteSpace(cardID))
+            {
+                return null;
+            }
+
             return cardList.Find(card => card.CardID == cardID);
         }
 

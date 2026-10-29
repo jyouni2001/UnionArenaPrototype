@@ -7,7 +7,8 @@ public class CardEnums
     {
         Error = -1,
         None = 0,
-        Cards = 1
+        Cards = 1,
+        Cards_Converted = 2
     }
     
     // 카드 종류

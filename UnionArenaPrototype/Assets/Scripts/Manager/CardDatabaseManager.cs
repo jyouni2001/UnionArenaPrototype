@@ -2,6 +2,8 @@
 using Data;
 using UnityEngine;
 
+
+// 카드 데이터를 Dictionary에 등록하고 ID로 빠르게 조회하는 역할
 namespace Manager
 {
     public class CardDatabaseManager : BaseManager
@@ -29,7 +31,7 @@ namespace Manager
             
             _cardDatabaseLoader = new CardDatabaseLoader(); // json파일 읽어 오는 로더 생성
             
-            if (!_cardDatabaseLoader.LoadDatabase(CardEnums.JJson.Cards.ToString()))
+            if (!_cardDatabaseLoader.LoadDatabase(CardEnums.JJson.Cards_Converted.ToString()))
             {
                 Debug.LogError("CardDatabaseManager: 카드 데이터 로드 실패");
                 return;
@@ -37,9 +39,9 @@ namespace Manager
 
             foreach (CardJsonData card in _cardDatabaseLoader.CardList) // 카드 목록 처음부터 끝까지 확인
             {
-                if (card == null || string.IsNullOrWhiteSpace(card.CardID)) // 카드 id가 비어있거나 카드 데이터가 없으면
+                if (card == null || string.IsNullOrWhiteSpace(card.CardID) || string.IsNullOrWhiteSpace(card.CardName)) // 카드 id와 이름이 비어있거나 카드 데이터가 없으면
                 {
-                    Debug.LogWarning("ID가 없거나 잘못된 카드 데이터입니다.");
+                    Debug.LogWarning("ID또는 이름이 없거나 잘못된 카드 데이터입니다.");
                     continue;
                 }
                 
@@ -52,7 +54,12 @@ namespace Manager
                 cardDictionary.Add(card.CardID, card); // 카드id로 카드 데이터 전체를 값으로 저장
             }
             
-            Debug.Log("CardDatabaseManager 등록 완료: " + cardDictionary.Count + "장");
+            // Debug.Log("CardDatabaseManager 등록 완료: " + cardDictionary.Count + "장");
+            
+            foreach (var card in cardDictionary.Values)
+            {
+                Debug.Log("등록된 카드: " + card.CardID + " / " + card.CardName);
+            }
         }
         
         // 카드 ID로 데이터 조회 하는 함수
