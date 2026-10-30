@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
+using Data;
+using Loaders;
 
-namespace Data
+namespace Tester
 {
     // 카드 데이터베이스 로더 정상작동 되는지 확인
     public class CardDatabaseLoaderTester : MonoBehaviour

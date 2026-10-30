@@ -1,8 +1,8 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Battle;
 using Data;
+using Enum;
 
 namespace Manager
 {

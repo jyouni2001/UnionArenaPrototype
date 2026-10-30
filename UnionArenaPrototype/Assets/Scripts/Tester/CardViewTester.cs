@@ -1,6 +1,7 @@
 using UnityEngine;
+using UI;
 
-namespace UI
+namespace Tester
 {
     public class CardViewTester : MonoBehaviour
     {

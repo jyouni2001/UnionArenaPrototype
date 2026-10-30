@@ -3,6 +3,7 @@ using UnityEngine;
 using Manager;
 using Battle;
 using Data;
+using Enum;
 
 // 전투 데이터 및 실제 카드 인스턴스 테스트
 public class BattleTest : MonoBehaviour

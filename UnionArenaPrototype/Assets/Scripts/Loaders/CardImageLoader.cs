@@ -1,6 +1,7 @@
 using UnityEngine;
+using Data;
 
-namespace Data
+namespace Loaders
 {
     public class CardImageLoader
     {

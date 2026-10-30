@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Battle
+namespace Enum
 {
     public class BattleEnums 
     {

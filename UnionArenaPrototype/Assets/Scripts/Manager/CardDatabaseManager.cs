@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using Data;
 using UnityEngine;
+using Loaders;
 
 
 // 카드 데이터를 Dictionary에 등록하고 ID로 빠르게 조회하는 역할

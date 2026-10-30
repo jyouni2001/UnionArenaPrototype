@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using Data;
+using Enum;
 
 namespace Battle
 {

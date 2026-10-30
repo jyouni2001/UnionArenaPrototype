@@ -2,10 +2,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Manager;
+using Data;
 
 
 // JSON 파일을 읽고 카드 목록을 반환하는 역할
-namespace Data
+namespace Loaders
 {
     // 카드 데이터베이스 읽기
     public class CardDatabaseLoader

@@ -1,6 +1,8 @@
 using UnityEngine;
+using Data;
+using Loaders;
 
-namespace Data
+namespace Tester
 {
     public class CardImageLoaderTester : MonoBehaviour
     {

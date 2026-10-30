@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Data;
+using Loaders;
 
 namespace UI
 {
