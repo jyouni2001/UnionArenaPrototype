@@ -2,7 +2,7 @@
 using UnityEngine;
 using Battle;
 using Data;
-using Enum;
+using Enums;
 
 namespace Manager
 {

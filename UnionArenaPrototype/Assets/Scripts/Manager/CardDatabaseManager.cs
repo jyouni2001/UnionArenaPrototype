@@ -55,11 +55,10 @@ namespace Manager
                 cardDictionary.Add(card.CardID, card); // 카드id로 카드 데이터 전체를 값으로 저장
             }
             
-            // Debug.Log("CardDatabaseManager 등록 완료: " + cardDictionary.Count + "장");
             
             foreach (var card in cardDictionary.Values)
             {
-                Debug.Log("등록된 카드: " + card.CardID + " / " + card.CardName);
+                //Debug.Log("등록된 카드: " + card.CardID + " / " + card.CardName);
             }
         }
         

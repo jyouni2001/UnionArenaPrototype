@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Battle;
-using Enum;
+using Enums;
 
 namespace Manager
 {
