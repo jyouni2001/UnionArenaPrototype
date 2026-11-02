@@ -62,11 +62,9 @@ namespace Manager
                 return false;
             }
 
-            deckSavePath = Path.Combine(
-                Application.persistentDataPath,
-                "Decks",
-                userID + ".json"
-            ); // 사용자별 덱 저장 경로
+            string projectPath = Directory.GetParent(Application.dataPath).FullName; // 프로젝트 최상위 경로
+
+            deckSavePath = Path.Combine(projectPath,"Decks",userID + ".json");
 
             return LoadDecks(userID); // 저장된 덱 불러오기
         }
