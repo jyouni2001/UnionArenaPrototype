@@ -1,9 +1,9 @@
-﻿
-using UnityEngine;
+﻿using UnityEngine;
 using Manager;
 using Battle;
 using Data;
 using Enums;
+using System.Collections.Generic;
 
 namespace Tester
 {
@@ -13,7 +13,7 @@ namespace Tester
         private void Start()
         {
             TestPlayerGameData(); // 플레이어 데이터 테스트
-            TestDeckCreation(); // 덱 생성 및 카드 추가 테스트
+            TestDeckCreation(); // 무작위 덱 생성 및 카드 추가 테스트
             TestDeckManagement(); // 덱 이름 변경 및 삭제 테스트
         }
 
@@ -102,7 +102,7 @@ namespace Tester
             }
         }
 
-        // 덱 생성 및 카드 추가 확인
+        // 33종의 카드 중 무작위로 50장 덱 생성 및 저장
         private void TestDeckCreation()
         {
             if (DeckManager.Instance == null)
@@ -111,7 +111,71 @@ namespace Tester
                 return;
             }
 
-            DeckData deckData = DeckManager.Instance.CreateDeck("테스트 덱"); // 테스트 덱 생성
+            if (CardDatabaseManager.Instance == null)
+            {
+                Debug.LogError("CardDatabaseManager 인스턴스가 없습니다.");
+                return;
+            }
+
+            string[] cardIDs =
+            {
+                "UA11BT_GNT-1-001",
+                "UA11BT_GNT-1-002",
+                "UA11BT_GNT-1-003",
+                "UA11BT_GNT-1-004",
+                "UA11BT_GNT-1-005",
+                "UA11BT_GNT-1-006",
+                "UA11BT_GNT-1-007",
+                "UA11BT_GNT-1-008",
+                "UA11BT_GNT-1-009",
+                "UA11BT_GNT-1-010",
+                "UA11BT_GNT-1-011",
+                "UA11BT_GNT-1-012",
+                "UA11BT_GNT-1-013",
+                "UA11BT_GNT-1-014",
+                "UA11BT_GNT-1-015",
+                "UA11BT_GNT-1-016",
+                "UA11BT_GNT-1-017",
+                "UA11BT_GNT-1-018",
+                "UA11BT_GNT-1-019",
+                "UA11BT_GNT-1-020",
+                "UA11BT_GNT-1-021",
+                "UA11BT_GNT-1-022",
+                "UA11BT_GNT-1-023",
+                "UA11BT_GNT-1-024",
+                "UA11BT_GNT-1-025",
+                "UA11BT_GNT-1-026",
+                "UA11BT_GNT-1-027",
+                "UA11BT_GNT-1-028",
+                "UA11BT_GNT-1-029",
+                "UA11BT_GNT-1-030",
+                "UA11BT_GNT-1-031",
+                "UA11BT_GNT-1-032",
+                "UA11BT_GNT-1-033"
+            };
+
+            List<string> validCardIDs = new List<string>(); // 실제 등록된 카드 ID
+
+            // 데이터베이스에 등록된 카드만 후보로 사용
+            foreach (string cardID in cardIDs)
+            {
+                if (CardDatabaseManager.Instance.GetCardByID(cardID) != null)
+                {
+                    validCardIDs.Add(cardID);
+                }
+                else
+                {
+                    Debug.LogError("카드 데이터가 없습니다: " + cardID);
+                }
+            }
+
+            if (validCardIDs.Count == 0)
+            {
+                Debug.LogError("사용할 수 있는 카드가 없습니다.");
+                return;
+            }
+
+            DeckData deckData = DeckManager.Instance.CreateDeck("무작위 50장 덱"); // 새 덱 생성
 
             if (deckData == null)
             {
@@ -119,65 +183,59 @@ namespace Tester
                 return;
             }
 
-            Debug.Log("덱 생성 성공");
+            int totalCardCount = 0; // 현재 덱 카드 수
+            const int targetCardCount = 50; // 목표 덱 카드 수
+            const int maxCardCount = 4; // 동일 카드 최대 수량
+
+            // 50장이 될 때까지 무작위 카드 선택
+            while (totalCardCount < targetCardCount)
+            {
+                int randomIndex = Random.Range(0, validCardIDs.Count); // 무작위 카드 인덱스
+                string selectedCardID = validCardIDs[randomIndex];
+
+                int currentCount = 0; // 선택한 카드의 현재 수량
+
+                foreach (DeckCardData cardData in deckData.Cards)
+                {
+                    if (cardData.CardID == selectedCardID)
+                    {
+                        currentCount = cardData.Count;
+                        break;
+                    }
+                }
+
+                if (currentCount >= maxCardCount)
+                {
+                    continue; // 최대 수량에 도달한 카드는 건너뜀
+                }
+
+                if (DeckManager.Instance.AddCard(deckData.DeckID, selectedCardID))
+                {
+                    totalCardCount++; // 카드 추가 성공 시 전체 수량 증가
+                }
+            }
+
+            // 덱 JSON 저장
+            if (!DeckManager.Instance.SaveDecks())
+            {
+                Debug.LogError("무작위 덱 저장에 실패했습니다.");
+                DeckManager.Instance.RemoveDeck(deckData.DeckID);
+                DeckManager.Instance.SaveDecks(); // 실패한 덱 제거 상태 저장
+                return;
+            }
+
+            Debug.Log("무작위 덱 생성 및 저장 성공");
             Debug.Log("덱 이름: " + deckData.DeckName);
             Debug.Log("덱 ID: " + deckData.DeckID);
-            Debug.Log("현재 보유 덱 개수: " + DeckManager.Instance.Decks.Count);
+            Debug.Log("전체 카드 수: " + totalCardCount);
 
-            int successCount = 0; // 카드 추가 성공 횟수
-
-            for (int i = 0; i < 5; i++)
-            {
-                bool addResult = DeckManager.Instance.AddCard(
-                    deckData.DeckID,
-                    "UA11BT_GNT-1-001"
-                ); // 동일 카드 추가 시도
-
-                if (addResult)
-                {
-                    successCount++; // 성공 횟수 증가
-                    Debug.Log((i + 1) + "번째 카드 추가 성공");
-                }
-                else
-                {
-                    Debug.Log((i + 1) + "번째 카드 추가 거부");
-                }
-            }
-
-            int totalCardCount = 0; // 전체 카드 수량
-
+            // 생성된 덱의 카드별 수량 확인
             foreach (DeckCardData cardData in deckData.Cards)
             {
-                totalCardCount += cardData.Count; // 카드 수량 합산
-
                 Debug.Log(
-                    "덱 카드 ID: " + cardData.CardID +
+                    "카드 ID: " + cardData.CardID +
                     " / 수량: " + cardData.Count
                 );
-            }
-
-            Debug.Log("카드 추가 성공 횟수: " + successCount);
-            Debug.Log("현재 테스트 덱 카드 수: " + totalCardCount);
-
-            if (successCount == 4 && totalCardCount == 4)
-            {
-                Debug.Log("동일 카드 최대 4장 제한 테스트 성공");
-            }
-            else
-            {
-                Debug.LogError("동일 카드 최대 4장 제한 테스트 실패");
-            }
-            
-            // 덱 저장 테스트
-            bool saveResult = DeckManager.Instance.SaveDecks(); // 덱 JSON 저장
-
-            if (saveResult)
-            {
-                Debug.Log("덱 JSON 저장 테스트 성공");
-            }
-            else
-            {
-                Debug.LogError("덱 JSON 저장 테스트 실패");
             }
         }
 
