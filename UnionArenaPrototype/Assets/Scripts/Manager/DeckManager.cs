@@ -34,7 +34,6 @@ namespace Manager
             }
 
             Instance = this; // 싱글톤 등록
-            DontDestroyOnLoad(gameObject); // 씬 이동 시 유지
 
             base.Initialize();
         }

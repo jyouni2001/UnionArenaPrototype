@@ -19,7 +19,7 @@ namespace Enums
         
         #endregion
 
-        #region
+        #region FieldPosition
 
         public enum FieldPosition
         {
@@ -30,5 +30,17 @@ namespace Enums
         }
 
         #endregion
+
+        #region PlayerType
+
+        // 게임 내 플레이어를 구분하는 enum
+        public enum PlayerType
+        {
+            PlayerA = 1,    // 방장
+            PlayerB = 2    // 참가자
+        }
+
+        #endregion
+        
     }
 }

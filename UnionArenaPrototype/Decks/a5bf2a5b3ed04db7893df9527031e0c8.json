@@ -1,0 +1,16 @@
+{
+    "dataVersion": 1,
+    "userID": "a5bf2a5b3ed04db7893df9527031e0c8",
+    "decks": [
+        {
+            "deckId": "75d58cf233404945bc52a3cc8511468f",
+            "deckName": "테스트 덱",
+            "cards": [
+                {
+                    "cardId": "UA11BT_GNT-1-001",
+                    "count": 4
+                }
+            ]
+        }
+    ]
+}

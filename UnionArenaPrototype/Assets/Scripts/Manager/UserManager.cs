@@ -26,7 +26,6 @@ namespace Manager
             }
 
             Instance = this; // 싱글톤 등록
-            DontDestroyOnLoad(gameObject); // Scene 변경 시 유지
 
             userDataPath = Path.Combine(Application.persistentDataPath, "UserData.json"); // 저장 경로 설정
 
