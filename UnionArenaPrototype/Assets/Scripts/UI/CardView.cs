@@ -14,16 +14,38 @@ namespace UI
 
         private void Awake()
         {
-            _cardImageLoader = new CardImageLoader(); // 객체 생성
+            InitializeImageLoader();
         }
 
-        // 카드 id에 해당되는 이미지 표시해주는 함수
+        // 이미지 로더 초기화
+        private void InitializeImageLoader()
+        {
+            if (_cardImageLoader != null)
+            {
+                return;
+            }
+
+            _cardImageLoader = new CardImageLoader(); // 카드 이미지 로더 생성
+        }
+
+        // 카드 id에 해당되는 이미지 표시
         public void SetCard(string cardID)
         {
             if (cardImage == null)
             {
                 Debug.LogError("CardView: CardImage가 연결되지 않았습니다.");
                 return;
+            }
+
+            if (string.IsNullOrEmpty(cardID))
+            {
+                Debug.LogError("CardView: 카드 ID가 비어 있습니다.");
+                return;
+            }
+
+            if (_cardImageLoader == null)
+            {
+                InitializeImageLoader(); // 초기화되지 않은 경우 로더 생성
             }
 
             Sprite sprite = _cardImageLoader.LoadCardImage(cardID);
@@ -35,7 +57,7 @@ namespace UI
             }
 
             cardImage.sprite = sprite;
-            cardImage.preserveAspect = true; // 비율유지
+            cardImage.preserveAspect = true; // 이미지 비율 유지
         }
     }
 }
