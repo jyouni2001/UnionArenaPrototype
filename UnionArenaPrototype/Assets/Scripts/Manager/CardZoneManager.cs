@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Battle;
@@ -193,6 +194,140 @@ namespace Manager
 
             // 이동한 영역의 UI 갱신 알림
             NotifyZoneChanged(playerGameData, targetZone);
+
+            return true;
+        }
+
+        // 필드 카드를 같은 라인 안에서 이동하거나 서로 교환
+        public bool MoveOrSwapFieldCard(
+            PlayerGameData playerData,
+            CardRuntimeData movingCard,
+            BattleEnums.FieldPosition targetFieldPosition,
+            int targetFieldSlotIndex)
+        {
+            // 플레이어 또는 카드 목록이 없으면 이동 중단
+            if (playerData == null ||
+                playerData.field == null ||
+                movingCard == null)
+            {
+                return false;
+            }
+
+            // 이동할 카드가 필드에 등록되어 있는지 확인
+            if (movingCard.currentZone != BattleEnums.CardZone.Field ||
+                !playerData.field.Contains(movingCard))
+            {
+                Debug.LogWarning(
+                    "MoveOrSwapFieldCard: 이동할 카드가 필드에 없습니다.");
+
+                return false;
+            }
+
+            // 출발 위치가 올바른지 확인
+            if (movingCard.fieldPosition == BattleEnums.FieldPosition.None ||
+                movingCard.fieldPosition == BattleEnums.FieldPosition.Error)
+            {
+                Debug.LogWarning(
+                    "MoveOrSwapFieldCard: 기존 필드 위치가 올바르지 않습니다.");
+
+                return false;
+            }
+
+            // 도착 위치가 올바른지 확인
+            if (targetFieldPosition == BattleEnums.FieldPosition.None ||
+                targetFieldPosition == BattleEnums.FieldPosition.Error)
+            {
+                Debug.LogWarning(
+                    "MoveOrSwapFieldCard: 이동할 필드 위치가 올바르지 않습니다.");
+
+                return false;
+            }
+
+            // 이동할 슬롯 번호 확인
+            if (targetFieldSlotIndex < 0 || targetFieldSlotIndex >= 4)
+            {
+                Debug.LogWarning(
+                    "MoveOrSwapFieldCard: 이동할 슬롯 번호가 올바르지 않습니다.");
+
+                return false;
+            }
+
+            // 기존 위치와 다른 라인으로 이동하는 상황 차단
+            if (movingCard.fieldPosition != targetFieldPosition)
+            {
+                Debug.LogWarning(
+                    "MoveOrSwapFieldCard: 서로 다른 필드 라인으로 이동할 수 없습니다.");
+
+                return false;
+            }
+
+            // 현재 카드의 출발 위치 저장
+            BattleEnums.FieldPosition originalFieldPosition =
+                movingCard.fieldPosition;
+
+            int originalSlotIndex =
+                movingCard.fieldSlotIndex;
+
+            // 같은 슬롯을 대상으로 했다면 변경할 필요 없음
+            if (originalSlotIndex == targetFieldSlotIndex)
+            {
+                return true;
+            }
+
+            CardRuntimeData targetCard = null;
+
+            // 도착 슬롯을 사용 중인 카드 검색
+            for (int i = 0; i < playerData.field.Count; i++)
+            {
+                CardRuntimeData fieldCard = playerData.field[i];
+
+                // 잘못된 카드 데이터는 검색에서 제외
+                if (fieldCard == null || fieldCard == movingCard)
+                {
+                    continue;
+                }
+
+                // 같은 라인의 도착 슬롯을 사용 중인 카드 확인
+                if (fieldCard.fieldPosition == targetFieldPosition &&
+                    fieldCard.fieldSlotIndex == targetFieldSlotIndex)
+                {
+                    targetCard = fieldCard;
+                    break;
+                }
+            }
+
+            // 도착 슬롯에 카드가 있는 경우 서로 위치 교환
+            if (targetCard != null)
+            {
+                // 도착 카드가 필드에 정상 등록되어 있는지 확인
+                if (targetCard.currentZone != BattleEnums.CardZone.Field ||
+                    !playerData.field.Contains(targetCard))
+                {
+                    Debug.LogWarning(
+                        "MoveOrSwapFieldCard: 교환 대상 카드 데이터가 올바르지 않습니다.");
+
+                    return false;
+                }
+
+                // 이동 카드에 도착 슬롯 정보 적용
+                movingCard.fieldPosition = targetFieldPosition;
+                movingCard.fieldSlotIndex = targetFieldSlotIndex;
+
+                // 도착 카드에 기존 카드의 슬롯 정보 적용
+                targetCard.fieldPosition = originalFieldPosition;
+                targetCard.fieldSlotIndex = originalSlotIndex;
+            }
+            else
+            {
+                // 도착 슬롯이 비어 있으면 이동 카드의 위치만 변경
+                movingCard.fieldPosition = targetFieldPosition;
+                movingCard.fieldSlotIndex = targetFieldSlotIndex;
+            }
+
+            // 필드 영역 UI 갱신 알림
+            NotifyZoneChanged(
+                playerData,
+                BattleEnums.CardZone.Field);
 
             return true;
         }
