@@ -2,12 +2,16 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+
 using Data;
 using Loaders;
 
 namespace UI
 {
-    public class CardView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class CardView : MonoBehaviour,
+        IBeginDragHandler,
+        IDragHandler,
+        IEndDragHandler
     {
         [Header("카드 이미지")]
         [SerializeField] private Image cardImage; // 카드 이미지
@@ -89,18 +93,33 @@ namespace UI
         // 마우스로 카드를 잡았을 때 호출
         public void OnBeginDrag(PointerEventData eventData)
         {
+            if (eventData == null)
+            {
+                return;
+            }
+
             _onBeginDrag?.Invoke(this, eventData); // 손패 UI에 드래그 시작 전달
         }
 
         // 마우스를 움직이는 동안 호출
         public void OnDrag(PointerEventData eventData)
         {
+            if (eventData == null)
+            {
+                return;
+            }
+
             _onDrag?.Invoke(this, eventData); // 손패 UI에 드래그 중 이벤트 전달
         }
 
         // 마우스 버튼을 놓았을 때 호출
         public void OnEndDrag(PointerEventData eventData)
         {
+            if (eventData == null)
+            {
+                return;
+            }
+
             _onEndDrag?.Invoke(this, eventData); // 손패 UI에 드래그 종료 전달
         }
 

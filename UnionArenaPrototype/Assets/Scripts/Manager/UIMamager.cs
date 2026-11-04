@@ -32,6 +32,7 @@ namespace Manager
         [SerializeField] private Button mulliganButton; // 멀리건 버튼
 
         private bool isProcessing = false; // 버튼 중복 입력 방지
+        private Coroutine _refreshCoroutine; // UI 갱신 코루틴
 
         // 싱글톤 등록 및 기본 초기화
         protected override void Awake()
@@ -87,6 +88,13 @@ namespace Manager
         // 버튼 이벤트, 카드 영역 변경 이벤트 및 싱글톤 해제
         private void OnDestroy()
         {
+            // 실행 중인 UI 갱신 코루틴 중지
+            if (_refreshCoroutine != null)
+            {
+                StopCoroutine(_refreshCoroutine);
+                _refreshCoroutine = null;
+            }
+
             // 유지 버튼이 연결되어 있으면 클릭 이벤트 해제
             if (keepButton != null)
             {
@@ -130,17 +138,39 @@ namespace Manager
                 return;
             }
 
-            // 변경된 카드 영역에 맞는 UI 갱신
-            switch (changedZone)
-            {
-                case BattleEnums.CardZone.Hand:
-                    RefreshPlayerHand(); // 일반 손패 UI 갱신
-                    break;
+            // 드래그 종료 이후 손패와 필드 UI를 함께 갱신하도록 예약
+            SchedulePlayerUIRefresh();
+        }
 
-                case BattleEnums.CardZone.Field:
-                    RefreshPlayerField(); // 필드 UI 갱신
-                    break;
+        // 플레이어 UI 갱신 예약
+        private void SchedulePlayerUIRefresh()
+        {
+            // 이미 갱신 작업이 예약되어 있으면 중복 실행하지 않음
+            if (_refreshCoroutine != null)
+            {
+                return;
             }
+
+            _refreshCoroutine = StartCoroutine(RefreshPlayerUIAfterFrame());
+        }
+
+        // 다음 프레임에 플레이어 UI 갱신
+        private IEnumerator RefreshPlayerUIAfterFrame()
+        {
+            // 현재 프레임의 드래그 이벤트 처리가 끝날 때까지 대기
+            yield return null;
+
+            _refreshCoroutine = null; // 예약 상태 초기화
+
+            // 전투 매니저 또는 플레이어 데이터가 없으면 갱신 중단
+            if (BattleManager.Instance == null ||
+                BattleManager.Instance.LocalPlayerData == null)
+            {
+                yield break;
+            }
+
+            RefreshPlayerHand(); // 손패 UI 갱신
+            RefreshPlayerField(); // 필드 UI 갱신
         }
 
         // 최초 손패 준비 완료 대기
@@ -270,7 +300,7 @@ namespace Manager
                     continue;
                 }
 
-                slots[i].ClearCard(); // 슬롯에 표시된 카드 숨김
+                slots[i].ClearCard(); // 카드 UI 숨김
             }
         }
 

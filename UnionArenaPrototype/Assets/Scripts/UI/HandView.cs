@@ -20,13 +20,17 @@ namespace UI
 
         private CardView _originalCardView; // 드래그를 시작한 원래 손패 카드
         private CanvasGroup _originalCardCanvasGroup; // 원본 카드의 표시 및 입력 제어
+        private CardRuntimeData _draggingRuntimeCard; // 실제로 드래그 중인 카드 데이터
         private int _originalCardIndex = -1; // 드래그를 시작한 손패 순서
         private bool _isDragging = false; // 현재 드래그 진행 여부
+        private bool _wasDroppedOnField = false; // 필드 슬롯에 드롭 성공했는지 여부
 
         private float _originalCanvasAlpha; // 드래그 전 원본 카드 투명도
         private bool _originalBlocksRaycasts; // 드래그 전 원본 카드 입력 차단 상태
         private bool _originalInteractable; // 드래그 전 원본 카드 상호작용 상태
         private bool _draggingRaycastTarget; // 드래그 전 복제 카드 입력 차단 상태
+
+        private static HandView _activeDraggingHandView; // 현재 드래그 중인 손패 UI
 
         // 손패 데이터를 카드 UI에 반영
         public void SetCards(IReadOnlyList<CardRuntimeData> handCards)
@@ -48,6 +52,7 @@ namespace UI
                 Debug.LogError(
                     $"HandView: 카드 UI가 부족합니다. " +
                     $"손패 = {handCards.Count}, UI = {cardViews.Count}");
+
                 return;
             }
 
@@ -114,7 +119,49 @@ namespace UI
 
             if (_originalCardIndex < 0)
             {
-                _originalCardView = null; // 손패 목록에 없는 카드 참조 해제
+                _originalCardView = null;
+                return;
+            }
+
+            // 실제 플레이어 손패 데이터 확인
+            if (BattleManager.Instance == null ||
+                BattleManager.Instance.LocalPlayerData == null)
+            {
+                Debug.LogError("HandView: 플레이어 데이터를 찾을 수 없습니다.");
+
+                ResetDragState();
+                return;
+            }
+
+            PlayerGameData playerData = BattleManager.Instance.LocalPlayerData; // 현재 플레이어 데이터
+
+            if (playerData.hand == null ||
+                _originalCardIndex >= playerData.hand.Count)
+            {
+                Debug.LogError("HandView: 드래그할 카드의 손패 데이터가 없습니다.");
+
+                ResetDragState();
+                return;
+            }
+
+            _draggingRuntimeCard = playerData.hand[_originalCardIndex]; // 실제 드래그 카드 저장
+
+            if (_draggingRuntimeCard == null ||
+                _draggingRuntimeCard.cardData == null ||
+                _draggingRuntimeCard.currentZone != Enums.BattleEnums.CardZone.Hand)
+            {
+                Debug.LogError("HandView: 드래그할 카드 데이터가 올바르지 않습니다.");
+
+                ResetDragState();
+                return;
+            }
+
+            // UI 카드와 실제 데이터 카드가 일치하는지 확인
+            if (_draggingRuntimeCard.cardData.CardID != cardID)
+            {
+                Debug.LogError("HandView: UI 카드와 실제 손패 카드 데이터가 일치하지 않습니다.");
+
+                ResetDragState();
                 return;
             }
 
@@ -147,6 +194,9 @@ namespace UI
             _originalCardCanvasGroup.interactable = false; // 원본 카드 상호작용 비활성화
 
             _isDragging = true; // 드래그 상태 시작
+            _wasDroppedOnField = false; // 필드 드롭 상태 초기화
+
+            _activeDraggingHandView = this; // 현재 드래그 중인 손패 UI 등록
 
             UpdateDraggingCardPosition(eventData); // 드래그 시작 위치 반영
         }
@@ -162,6 +212,71 @@ namespace UI
             UpdateDraggingCardPosition(eventData); // 드래그 카드가 마우스를 따라가도록 이동
         }
 
+        // 필드 슬롯에 카드를 드롭할 때 호출
+        public static bool TryDropOnFieldSlot(FieldSlotView fieldSlot)
+        {
+            // 현재 드래그 중인 손패 UI 확인
+            HandView handView = _activeDraggingHandView;
+
+            if (handView == null ||
+                !handView._isDragging ||
+                fieldSlot == null)
+            {
+                return false;
+            }
+
+            // 실제 플레이어 데이터 확인
+            if (BattleManager.Instance == null ||
+                BattleManager.Instance.LocalPlayerData == null)
+            {
+                Debug.LogError("HandView: 필드 드롭에 필요한 플레이어 데이터가 없습니다.");
+                return false;
+            }
+
+            // 카드 영역 매니저 확인
+            if (CardZoneManager.Instance == null)
+            {
+                Debug.LogError("HandView: CardZoneManager를 찾을 수 없습니다.");
+                return false;
+            }
+
+            PlayerGameData playerData =
+                BattleManager.Instance.LocalPlayerData; // 현재 플레이어 데이터
+
+            CardRuntimeData card =
+                handView._draggingRuntimeCard; // 드래그 중인 실제 카드
+
+            if (card == null ||
+                card.currentZone != Enums.BattleEnums.CardZone.Hand)
+            {
+                Debug.LogWarning("HandView: 드래그 중인 카드가 손패에 없습니다.");
+                return false;
+            }
+
+            // 필드 슬롯의 위치와 번호를 가져와 카드 이동
+            bool moveSuccess = CardZoneManager.Instance.MoveCard(
+                playerData,
+                card,
+                Enums.BattleEnums.CardZone.Field,
+                fieldSlot.GetFieldPosition(),
+                fieldSlot.GetSlotIndex());
+
+            if (!moveSuccess)
+            {
+                Debug.LogWarning("HandView: 필드 슬롯으로 카드 이동에 실패했습니다.");
+                return false;
+            }
+
+            handView._wasDroppedOnField = true; // 필드 드롭 성공 기록
+
+            Debug.Log(
+                $"HandView: 카드 {card.cardData.CardID} 필드 배치 성공. " +
+                $"위치 = {fieldSlot.GetFieldPosition()}, " +
+                $"슬롯 = {fieldSlot.GetSlotIndex()}");
+
+            return true;
+        }
+
         // 드래그 종료
         private void HandleEndDrag(CardView cardView, PointerEventData eventData)
         {
@@ -171,15 +286,27 @@ namespace UI
             }
 
             int fromIndex = _originalCardIndex; // 이동 전 카드 순서
-            int toIndex = GetDropIndex(eventData); // 마우스 위치에 따른 삽입 순서
+
+            // 필드 드롭에 성공하지 않은 경우에만 손패 삽입 위치 계산
+            int toIndex = -1;
+
+            if (!_wasDroppedOnField)
+            {
+                toIndex = GetDropIndex(eventData);
+            }
 
             RestoreOriginalCard(); // 원본 카드 상태 복구
             HideDraggingCard(); // 드래그 카드 숨김
 
-            _isDragging = false; // 드래그 상태 종료
-            _originalCardView = null; // 원본 카드 참조 해제
-            _originalCardCanvasGroup = null; // CanvasGroup 참조 해제
-            _originalCardIndex = -1; // 기존 순서 초기화
+            bool wasDroppedOnField = _wasDroppedOnField; // 필드 드롭 결과 저장
+
+            ResetDragState(); // 드래그 상태 초기화
+
+            // 필드 배치에 성공했다면 손패 재정렬을 실행하지 않음
+            if (wasDroppedOnField)
+            {
+                return;
+            }
 
             // 이동할 위치가 유효하면 실제 손패 데이터 순서 변경
             if (BattleManager.Instance != null &&
@@ -304,6 +431,23 @@ namespace UI
             }
         }
 
+        // 드래그 상태 초기화
+        private void ResetDragState()
+        {
+            _isDragging = false; // 드래그 상태 초기화
+            _wasDroppedOnField = false; // 필드 드롭 상태 초기화
+
+            _originalCardView = null; // 원본 카드 참조 해제
+            _originalCardCanvasGroup = null; // CanvasGroup 참조 해제
+            _draggingRuntimeCard = null; // 실제 카드 데이터 참조 해제
+            _originalCardIndex = -1; // 기존 순서 초기화
+
+            if (_activeDraggingHandView == this)
+            {
+                _activeDraggingHandView = null; // 현재 드래그 UI 등록 해제
+            }
+        }
+
         // 모든 카드 UI 비활성화
         public void ClearCards()
         {
@@ -327,10 +471,7 @@ namespace UI
             RestoreOriginalCard(); // 원본 카드 상태 복구
             HideDraggingCard(); // 드래그 카드 숨김
 
-            _isDragging = false; // 드래그 상태 초기화
-            _originalCardView = null; // 원본 카드 참조 해제
-            _originalCardCanvasGroup = null; // CanvasGroup 참조 해제
-            _originalCardIndex = -1; // 기존 순서 초기화
+            ResetDragState(); // 드래그 상태 초기화
         }
     }
 }

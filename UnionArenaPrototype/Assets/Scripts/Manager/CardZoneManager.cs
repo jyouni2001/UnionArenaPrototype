@@ -61,13 +61,14 @@ namespace Manager
             }
         }
 
-        // 카드를 지정한 영역으로 이동
+        // 카드를 지정한 영역과 필드 슬롯으로 이동
         public bool MoveCard(
             PlayerGameData playerGameData,
             CardRuntimeData card,
             BattleEnums.CardZone targetZone,
             BattleEnums.FieldPosition targetFieldPosition =
-                BattleEnums.FieldPosition.None)
+                BattleEnums.FieldPosition.None,
+            int targetFieldSlotIndex = -1)
         {
             // 플레이어 또는 카드 데이터가 없으면 이동 중단
             if (playerGameData == null || card == null)
@@ -84,17 +85,46 @@ namespace Manager
                 return false;
             }
 
-            // 필드로 이동할 때 세부 위치가 지정되지 않았다면 이동 중단
-            if (targetZone == BattleEnums.CardZone.Field &&
-                targetFieldPosition == BattleEnums.FieldPosition.None)
+            // 필드로 이동할 때 위치와 슬롯 번호 확인
+            if (targetZone == BattleEnums.CardZone.Field)
             {
-                return false;
-            }
+                if (targetFieldPosition == BattleEnums.FieldPosition.None ||
+                    targetFieldPosition == BattleEnums.FieldPosition.Error)
+                {
+                    Debug.LogWarning("MoveCard: 필드 위치가 올바르지 않습니다.");
+                    return false;
+                }
 
-            // 필드가 아닌 영역으로 이동할 때는 세부 위치 초기화
-            if (targetZone != BattleEnums.CardZone.Field)
+                // 현재 프로토타입의 필드 슬롯은 각 위치별 0~3번으로 구성
+                if (targetFieldSlotIndex < 0 || targetFieldSlotIndex >= 4)
+                {
+                    Debug.LogWarning("MoveCard: 필드 슬롯 번호가 올바르지 않습니다.");
+                    return false;
+                }
+
+                // 같은 필드 위치와 슬롯을 다른 카드가 사용 중인지 확인
+                for (int i = 0; i < playerGameData.field.Count; i++)
+                {
+                    CardRuntimeData fieldCard = playerGameData.field[i];
+
+                    if (fieldCard == null || fieldCard == card)
+                    {
+                        continue;
+                    }
+
+                    if (fieldCard.fieldPosition == targetFieldPosition &&
+                        fieldCard.fieldSlotIndex == targetFieldSlotIndex)
+                    {
+                        Debug.LogWarning("MoveCard: 이미 사용 중인 필드 슬롯입니다.");
+                        return false;
+                    }
+                }
+            }
+            else
             {
+                // 필드가 아닌 영역으로 이동할 때 필드 정보 초기화
                 targetFieldPosition = BattleEnums.FieldPosition.None;
+                targetFieldSlotIndex = -1;
             }
 
             // 카드가 이미 같은 영역에 있는 경우
@@ -106,14 +136,16 @@ namespace Manager
                     return false;
                 }
 
-                // 기존 필드 위치와 변경할 필드 위치 비교
+                // 필드 위치 또는 슬롯 번호가 변경되었는지 확인
                 bool fieldPositionChanged =
-                    card.fieldPosition != targetFieldPosition;
+                    card.fieldPosition != targetFieldPosition ||
+                    card.fieldSlotIndex != targetFieldSlotIndex;
 
-                // 카드의 필드 위치 갱신
+                // 카드의 필드 위치와 슬롯 번호 갱신
                 card.fieldPosition = targetFieldPosition;
+                card.fieldSlotIndex = targetFieldSlotIndex;
 
-                // 필드 위치가 변경되었다면 해당 영역의 UI 갱신 알림
+                // 필드 정보가 변경되었다면 UI 갱신 알림
                 if (fieldPositionChanged)
                 {
                     NotifyZoneChanged(playerGameData, targetZone);
@@ -128,7 +160,7 @@ namespace Manager
             List<CardRuntimeData> currentList =
                 GetZoneList(playerGameData, previousZone);
 
-            // 이동할 영역에 이미 카드가 등록되어 있다면 중복 이동 방지
+            // 이동할 영역에 카드가 이미 등록되어 있다면 중복 이동 방지
             if (targetList.Contains(card))
             {
                 return false;
@@ -140,6 +172,7 @@ namespace Manager
                 // 기존 영역 목록이 없거나 카드 제거에 실패하면 이동 중단
                 if (currentList == null || !currentList.Remove(card))
                 {
+                    Debug.LogWarning("MoveCard: 기존 영역에서 카드를 찾을 수 없습니다.");
                     return false;
                 }
             }
@@ -147,15 +180,10 @@ namespace Manager
             // 이동할 영역의 목록에 카드 추가
             targetList.Add(card);
 
-            // 카드의 현재 영역과 필드 위치 갱신
+            // 카드의 현재 영역과 필드 위치 및 슬롯 번호 갱신
             card.currentZone = targetZone;
             card.fieldPosition = targetFieldPosition;
-
-            // 필드에서 다른 영역으로 이동했다면 슬롯 번호 초기화
-            if (targetZone != BattleEnums.CardZone.Field)
-            {
-                card.fieldSlotIndex = -1;
-            }
+            card.fieldSlotIndex = targetFieldSlotIndex;
 
             // 이전 영역이 존재한다면 이전 영역의 UI 갱신 알림
             if (previousZone != BattleEnums.CardZone.None)
