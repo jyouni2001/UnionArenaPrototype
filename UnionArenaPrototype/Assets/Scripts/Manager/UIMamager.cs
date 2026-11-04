@@ -1,4 +1,3 @@
-
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -97,13 +96,13 @@ namespace Manager
             // 멀리건 버튼이 연결되어 있으면 클릭 이벤트 해제
             if (mulliganButton != null)
             {
-                mulliganButton.onClick.RemoveListener(MulliganInitialHand); // 멀리건 함수 연결 해제
+                mulliganButton.onClick.RemoveListener(MulliganInitialHand); // 멀리건 버튼 함수 연결 해제
             }
 
             // 카드 영역 매니저가 존재하면 공통 영역 변경 이벤트 구독 해제
             if (CardZoneManager.Instance != null)
             {
-                CardZoneManager.Instance.OnZoneChanged -= HandleZoneChanged; // 영역 변경 이벤트 수신 함수 해제
+                CardZoneManager.Instance.OnZoneChanged -= HandleZoneChanged; // 카드 영역 변경 이벤트 수신 함수 해제
             }
 
             // 현재 인스턴스가 싱글톤으로 등록된 객체일 때만 초기화
@@ -382,11 +381,11 @@ namespace Manager
                 return;
             }
 
-            RefreshMulliganHand(); // 새로 받은 손패를 멀리건 UI에 표시
-            ShowMulliganPanel(); // 멀리건 패널 다시 표시
-            SetMulliganButtons(true); // 멀리건 버튼 다시 활성화
+            RefreshPlayerHand(); // 새 손패를 일반 손패 UI에 표시
+            HideMulliganPanel(); // 멀리건 패널 숨김
 
-            isProcessing = false; // 다음 버튼 입력을 허용
+            SetMulliganButtons(false); // 멀리건 버튼 비활성화
+            isProcessing = false; // 버튼 처리 상태 초기화
         }
 
         // 멀리건 버튼 활성화 상태 변경
