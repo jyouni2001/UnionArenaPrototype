@@ -1,195 +1,288 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-// CSV를 JSON으로 변환
 namespace Editor
 {
-    public class CardCsvToJsonConverter : EditorWindow 
+    public class CardCsvToJsonConverter : EditorWindow
     {
-        [Serializable] 
-        public class CardList // 카드 목록을 담는 클래스
+        [Serializable]
+        public class CardList
         {
-            public List<CardData> cards = new List<CardData>(); // 카드 데이터 목록
+            public List<CardData> cards = new List<CardData>();
         }
 
         [Serializable]
-        public class CardData // 카드 한 장의 데이터
+        public class CardData
         {
-            public string cardID; // 카드 고유 ID
-            public string cardName; // 카드 이름
-            public int cardColor; // 카드 색상 번호
-            public int cardType; // 카드 종류 번호
-            public int bp; // 카드 BP
-            public int requiredEnColor; // 필요한 에너지 색상 번호
-            public int requiredEnCost; // 필요한 에너지 비용
-            public int requiredApCost; // 필요한 AP 비용
-            public int cardTrigger; // 카드 발동 조건 번호
-            public string effectText; // 카드 효과 설명
-            public string[] cardFeatures; // 카드 특징 목록
-            public KeywordData[] cardKeywords; // 카드 키워드 목록
-        }
+            public string cardID;
+            public string cardName;
 
-        [Serializable] 
-        public class KeywordData // 카드 키워드 데이터
-        {
-            public int cardKeywordType; // 키워드 종류 번호
-            public int value; // 키워드 수치
+            public int cardColor;
+            public int cardType;
+            public int bp;
+
+            public int requiredEnColor;
+            public int requiredEnCost;
+            public int requiredApCost;
+
+            public int cardTrigger;
+            public string effectText;
+            public string[] cardFeatures;
+            public KeywordData[] cardKeywords;
+
+            public int generatedEnColor;
+            public int generatedEnCount;
+            public bool generatedEnCanIncrease;
         }
 
         [Serializable]
-        public class StringArrayWrapper // 문자열 배열을 감싸는 클래스
+        public class KeywordData
         {
-            public string[] items; // 문자열 목록
+            public int cardKeywordType;
+            public int value;
         }
 
-        [Serializable] 
-        public class KeywordArrayWrapper // 키워드 배열을 감싸는 클래스
+        [Serializable]
+        public class StringArrayWrapper
         {
-            public KeywordData[] items; // 키워드 목록
+            public string[] items;
         }
 
-        [MenuItem("Tools/Card CSV To JSON")] // Unity 상단 메뉴에 변환 도구 등록
-        public static void OpenWindow() // 변환 창 열기
+        [Serializable]
+        public class KeywordArrayWrapper
         {
-            GetWindow<CardCsvToJsonConverter>("카드 CSV 변환"); // 변환 창 표시
+            public KeywordData[] items;
         }
 
-        private void OnGUI() // 변환 창 화면 구성
+        [MenuItem("Tools/Card CSV To JSON")]
+        public static void OpenWindow()
         {
-            GUILayout.Label("카드 CSV → JSON 변환", EditorStyles.boldLabel); // 창 제목 표시
+            GetWindow<CardCsvToJsonConverter>("카드 CSV 변환");
+        }
 
-            if (GUILayout.Button("CSV 선택 및 JSON 생성")) // 변환 버튼 표시
+        private void OnGUI()
+        {
+            GUILayout.Label("카드 CSV → JSON 변환", EditorStyles.boldLabel);
+
+            if (GUILayout.Button("CSV 선택 및 JSON 생성"))
             {
-                ConvertCsv(); // CSV 변환 실행
+                ConvertCsv();
             }
         }
 
-        private void ConvertCsv() // CSV 파일을 JSON으로 변환
+        private void ConvertCsv()
         {
-            string csvPath = EditorUtility.OpenFilePanel("UnionArenaCards.csv 선택", "", "csv"); // CSV 파일 선택 창 표시
+            string csvPath = EditorUtility.OpenFilePanel(
+                "UnionArenaCards.csv 선택",
+                "",
+                "csv"
+            );
 
-            if (string.IsNullOrEmpty(csvPath)) // 파일을 선택하지 않은 경우
+            if (string.IsNullOrEmpty(csvPath))
             {
-                return; // 변환 종료
+                return;
             }
 
-            try // 변환 중 오류 처리 시작
+            try
             {
-                string[] lines = File.ReadAllLines(csvPath, Encoding.UTF8); // CSV 전체 행 읽기
-                CardList cardList = new CardList(); // 카드 목록 생성
+                string[] lines = File.ReadAllLines(csvPath, Encoding.UTF8);
+                CardList cardList = new CardList();
 
-                for (int i = 1; i < lines.Length; i++) // 첫 번째 행인 제목을 제외하고 반복
+                // 첫 줄은 헤더이므로 제외
+                for (int i = 1; i < lines.Length; i++)
                 {
-                    if (string.IsNullOrWhiteSpace(lines[i])) // 빈 행인지 확인
+                    if (string.IsNullOrWhiteSpace(lines[i]))
                     {
-                        continue; // 빈 행 건너뛰기
+                        continue;
                     }
 
-                    List<string> columns = ParseCsvLine(lines[i]); // CSV 한 행을 열 단위로 분리
+                    List<string> columns = ParseCsvLine(lines[i]);
 
-                    if (columns.Count != 12) // 열이 12개인지 확인
+                    if (columns.Count != 15)
                     {
-                        Debug.LogError($"CSV {i + 1}행의 열 개수가 12개가 아닙니다: {columns.Count}"); // 오류 출력
-                        return; // 변환 종료
+                        Debug.LogError(
+                            $"CSV {i + 1}행의 열 개수가 15개가 아닙니다: {columns.Count}"
+                        );
+                        return;
                     }
 
                     if (string.IsNullOrWhiteSpace(columns[0]) ||
-                        string.IsNullOrWhiteSpace(columns[1])) // 카드 ID와 이름 확인
+                        string.IsNullOrWhiteSpace(columns[1]))
                     {
-                        Debug.LogError($"CSV {i + 1}행의 카드 ID 또는 이름이 비어 있습니다."); // 오류 출력
-                        return; // 변환 종료
+                        Debug.LogError(
+                            $"CSV {i + 1}행의 카드 ID 또는 이름이 비어 있습니다."
+                        );
+                        return;
                     }
 
                     CardData card = new CardData
                     {
-                        cardID = columns[0].Trim(), // 카드 ID 입력
-                        cardName = columns[1].Trim(), // 카드 이름 입력
-                        cardColor = int.Parse(columns[2]), // 카드 색상 번호 변환
-                        cardType = int.Parse(columns[3]), // 카드 종류 번호 변환
-                        bp = int.Parse(columns[4]), // BP 변환
-                        requiredEnColor = int.Parse(columns[5]), // 필요 에너지 색상 변환
-                        requiredEnCost = int.Parse(columns[6]), // 필요 에너지 비용 변환
-                        requiredApCost = int.Parse(columns[7]), // 필요 AP 비용 변환
-                        cardTrigger = int.Parse(columns[8]), // 발동 조건 번호 변환
-                        effectText = columns[9], // 효과 설명 입력
+                        // 1~9열
+                        cardID = columns[0].Trim(),
+                        cardName = columns[1].Trim(),
+                        cardColor = ParseIntCell(columns[2]),
+                        cardType = ParseIntCell(columns[3]),
+                        bp = ParseIntCell(columns[4]),
+                        requiredEnColor = ParseIntCell(columns[5]),
+                        requiredEnCost = ParseIntCell(columns[6]),
+                        requiredApCost = ParseIntCell(columns[7]),
+                        cardTrigger = ParseIntCell(columns[8]),
 
-                        cardFeatures = JsonUtility.FromJson<StringArrayWrapper>("{\"items\":" + columns[10] + "}").items, // 특징 JSON 배열 변환
+                        // 10~12열
+                        effectText = columns[9].Trim(),
+                        cardFeatures = ParseStringArray(columns[10]),
+                        cardKeywords = ParseKeywordArray(columns[11]),
 
-                        cardKeywords = JsonUtility.FromJson<KeywordArrayWrapper>("{\"items\":" + columns[11] + "}").items // 키워드 JSON 배열 변환
+                        // 13~15열
+                        generatedEnColor = ParseIntCell(columns[12]),
+                        generatedEnCount = ParseIntCell(columns[13]),
+                        generatedEnCanIncrease = ParseBoolCell(columns[14])
                     };
 
-                    cardList.cards.Add(card); // 변환한 카드 등록
+                    cardList.cards.Add(card);
                 }
 
                 string json = JsonUtility.ToJson(cardList, true);
 
-                string outputPath = EditorUtility.SaveFilePanel("변환된 JSON 저장",Application.dataPath + "/Resources/CardData",
-                    "Cards_Converted.json","json"); // JSON 저장 위치 선택
+                string outputPath = EditorUtility.SaveFilePanel(
+                    "변환된 JSON 저장",
+                    Application.dataPath + "/Resources/CardData",
+                    "Cards_Converted.json",
+                    "json"
+                );
 
-                if (string.IsNullOrEmpty(outputPath)) // 저장 위치를 선택하지 않은 경우
+                if (string.IsNullOrEmpty(outputPath))
                 {
-                    return; // 저장 종료
+                    return;
                 }
 
                 File.WriteAllText(
-                    outputPath, json, new UTF8Encoding(false));
+                    outputPath,
+                    json,
+                    new UTF8Encoding(false)
+                );
 
-                AssetDatabase.Refresh(); // Unity 에셋 목록 갱신
+                AssetDatabase.Refresh();
 
-                Debug.Log($"CSV 변환 완료: {cardList.cards.Count}장\n{outputPath}"); // 변환 결과 출력
+                Debug.Log(
+                    $"CSV 변환 완료: {cardList.cards.Count}장\n{outputPath}"
+                );
 
-                EditorUtility.DisplayDialog("변환 완료",$"카드 {cardList.cards.Count}장을 JSON으로 변환했습니다.","확인"); // 완료 메시지 표시
+                EditorUtility.DisplayDialog(
+                    "변환 완료",
+                    $"카드 {cardList.cards.Count}장을 JSON으로 변환했습니다.",
+                    "확인"
+                );
             }
-            catch (Exception e) // 변환 중 발생한 오류 처리
+            catch (Exception e)
             {
-                Debug.LogError("CSV 변환 실패: " + e.Message); // 오류 내용 출력
+                Debug.LogError("CSV 변환 실패: " + e.Message);
 
-                EditorUtility.DisplayDialog("변환 실패",e.Message,"확인"); // 오류 메시지 표시
+                EditorUtility.DisplayDialog(
+                    "변환 실패",
+                    e.Message,
+                    "확인"
+                );
             }
         }
 
-        private List<string> ParseCsvLine(string line) // CSV 한 행을 열 단위로 분리
+        private int ParseIntCell(string value)
         {
-            List<string> result = new List<string>(); // 분리된 열 목록
-            StringBuilder value = new StringBuilder(); // 현재 열의 문자열
-            bool insideQuotes = false; // 큰따옴표 안에 있는지 확인
-
-            for (int i = 0; i < line.Length; i++) // 문자열을 한 글자씩 확인
+            if (string.IsNullOrWhiteSpace(value))
             {
-                char c = line[i]; // 현재 문자 가져오기
+                return 0;
+            }
 
-                if (c == '"') // 큰따옴표를 만난 경우
+            return int.Parse(value.Trim(), CultureInfo.InvariantCulture);
+        }
+
+        private bool ParseBoolCell(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            return bool.Parse(value.Trim());
+        }
+
+        private string[] ParseStringArray(string jsonArray)
+        {
+            if (string.IsNullOrWhiteSpace(jsonArray))
+            {
+                return new string[0];
+            }
+
+            StringArrayWrapper wrapper =
+                JsonUtility.FromJson<StringArrayWrapper>(
+                    "{\"items\":" + jsonArray + "}"
+                );
+
+            return wrapper != null && wrapper.items != null
+                ? wrapper.items
+                : new string[0];
+        }
+
+        private KeywordData[] ParseKeywordArray(string jsonArray)
+        {
+            if (string.IsNullOrWhiteSpace(jsonArray))
+            {
+                return new KeywordData[0];
+            }
+
+            KeywordArrayWrapper wrapper =
+                JsonUtility.FromJson<KeywordArrayWrapper>(
+                    "{\"items\":" + jsonArray + "}"
+                );
+
+            return wrapper != null && wrapper.items != null
+                ? wrapper.items
+                : new KeywordData[0];
+        }
+
+        private List<string> ParseCsvLine(string line)
+        {
+            List<string> result = new List<string>();
+            StringBuilder value = new StringBuilder();
+            bool insideQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char current = line[i];
+
+                if (current == '"')
                 {
                     if (insideQuotes &&
                         i + 1 < line.Length &&
-                        line[i + 1] == '"') // 큰따옴표가 두 번 연속된 경우
+                        line[i + 1] == '"')
                     {
-                        value.Append('"'); // 실제 큰따옴표 한 개 추가
-                        i++; // 다음 큰따옴표 건너뛰기
+                        // CSV에서 ""는 실제 큰따옴표 하나를 뜻함
+                        value.Append('"');
+                        i++;
                     }
                     else
                     {
-                        insideQuotes = !insideQuotes; // 따옴표 내부 상태 전환
+                        insideQuotes = !insideQuotes;
                     }
                 }
-                else if (c == ',' && !insideQuotes) // 따옴표 바깥의 쉼표인 경우
+                else if (current == ',' && !insideQuotes)
                 {
-                    result.Add(value.ToString()); // 현재 열 등록
-                    value.Clear(); // 다음 열을 위해 문자열 초기화
+                    result.Add(value.ToString());
+                    value.Clear();
                 }
                 else
                 {
-                    value.Append(c); // 현재 문자 추가
+                    value.Append(current);
                 }
             }
 
-            result.Add(value.ToString()); // 마지막 열 등록
-
-            return result; // 분리된 열 목록 반환
+            result.Add(value.ToString());
+            return result;
         }
     }
 }

@@ -9,7 +9,7 @@
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 11,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -19,7 +19,10 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-002",
@@ -31,7 +34,7 @@
             "requiredEnCost": 4,
             "requiredApCost": 1,
             "cardTrigger": 9,
-            "effectText": "어택시) 한턴에 한 번 내 프론트 라인에 카드 한 장을 눕이는 것으로 이 카드 엑티브",
+            "effectText": "",
             "cardFeatures": [
                 ""
             ],
@@ -40,18 +43,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-003",
-            "cardName": "3",
+            "cardName": "사사키 이사부로",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 3500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -61,18 +67,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-004",
-            "cardName": "4",
+            "cardName": "사루토비 아야메",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1000,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -82,18 +91,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": true
         },
         {
             "cardID": "UA11BT_GNT-1-005",
-            "cardName": "5",
+            "cardName": "사루토비 아야메",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 1,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 11,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -103,18 +115,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-006",
-            "cardName": "6",
+            "cardName": "사루토비 아야메",
             "cardColor": 2,
-            "cardType": 2,
+            "cardType": 5,
             "bp": 3000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 2,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -124,18 +139,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-007",
-            "cardName": "7",
+            "cardName": "도쿠가와 시게시게",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 2,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -145,18 +163,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-008",
-            "cardName": "8",
+            "cardName": "도쿠가와 소요",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1000,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -166,18 +187,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-009",
-            "cardName": "9",
+            "cardName": "하토리 젠조",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2000,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -187,18 +211,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-010",
-            "cardName": "10",
+            "cardName": "하토리 젠조",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 2,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -208,18 +235,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-011",
-            "cardName": "11",
+            "cardName": "하토리 젠조",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 3500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 4,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 4,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -229,18 +259,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-012",
-            "cardName": "12",
+            "cardName": "마츠다이라 카타쿠리코",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 1,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -250,14 +283,17 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 2,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-013",
-            "cardName": "13",
+            "cardName": "오키타 소고",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1500,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
@@ -271,18 +307,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-014",
-            "cardName": "14",
+            "cardName": "오키타 소고",
             "cardColor": 2,
             "cardType": 2,
             "bp": 3000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 2,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -292,18 +331,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-015",
-            "cardName": "15",
+            "cardName": "오키타 소고",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 5,
+            "bp": 3500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 2,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -313,18 +355,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-016",
-            "cardName": "16",
+            "cardName": "콘도 이사오",
             "cardColor": 2,
             "cardType": 2,
             "bp": 3000,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -334,18 +379,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 2,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-017",
-            "cardName": "17",
+            "cardName": "콘도 이사오",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 2,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -355,18 +403,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": true
         },
         {
             "cardID": "UA11BT_GNT-1-018",
-            "cardName": "18",
+            "cardName": "콘도 이사오",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 4000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
-            "requiredApCost": 1,
-            "cardTrigger": 9,
+            "requiredEnCost": 4,
+            "requiredApCost": 2,
+            "cardTrigger": 5,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -376,18 +427,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-019",
-            "cardName": "19",
+            "cardName": "사이토 시마루",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2000,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -397,18 +451,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-020",
-            "cardName": "20",
+            "cardName": "사사키 테츠노스케",
             "cardColor": 2,
             "cardType": 2,
             "bp": 3000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -418,18 +475,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 2,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-021",
-            "cardName": "21",
+            "cardName": "히지카타 텐코",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 4000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 10,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -439,14 +499,17 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 2,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-022",
-            "cardName": "22",
+            "cardName": "히지카타 토시로",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1500,
             "requiredEnColor": 2,
             "requiredEnCost": 0,
             "requiredApCost": 1,
@@ -460,18 +523,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-023",
-            "cardName": "23",
+            "cardName": "히지카타 토시로",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 2000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 1,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -481,18 +547,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-024",
-            "cardName": "24",
+            "cardName": "히지카타 토시로",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 5,
+            "bp": 4000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 5,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 2,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -502,18 +571,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-025",
-            "cardName": "25",
+            "cardName": "야마자키 사가루",
             "cardColor": 2,
             "cardType": 2,
-            "bp": 3000,
+            "bp": 1500,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 1,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 0,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -523,18 +595,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-026",
-            "cardName": "26",
+            "cardName": "사카타 긴코",
             "cardColor": 2,
             "cardType": 2,
             "bp": 3000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 2,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -544,18 +619,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-027",
-            "cardName": "27",
+            "cardName": "사카타 긴토키",
             "cardColor": 2,
             "cardType": 2,
             "bp": 3000,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 11,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -565,16 +643,19 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-028",
-            "cardName": "28",
+            "cardName": "닌자의 마을",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 4,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
             "cardTrigger": 9,
             "effectText": "",
@@ -586,18 +667,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-029",
-            "cardName": "29",
+            "cardName": "국중법도",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 3,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 11,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -607,18 +691,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 0,
+            "generatedEnCount": 0,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-030",
-            "cardName": "30",
+            "cardName": "장군의 이름으로 명한다",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 3,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 3,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -628,18 +715,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 0,
+            "generatedEnCount": 0,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-031",
-            "cardName": "31",
+            "cardName": "진선조 바주카",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 3,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 4,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 3,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -649,18 +739,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 0,
+            "generatedEnCount": 0,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-032",
-            "cardName": "32",
+            "cardName": "닌자 면허",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 3,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 10,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -670,18 +763,21 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 2,
+            "generatedEnCount": 1,
+            "generatedEnCanIncrease": false
         },
         {
             "cardID": "UA11BT_GNT-1-033",
-            "cardName": "33",
+            "cardName": "히지카타 스페셜",
             "cardColor": 2,
-            "cardType": 2,
-            "bp": 3000,
+            "cardType": 3,
+            "bp": 0,
             "requiredEnColor": 2,
-            "requiredEnCost": 0,
+            "requiredEnCost": 3,
             "requiredApCost": 1,
-            "cardTrigger": 9,
+            "cardTrigger": 1,
             "effectText": "",
             "cardFeatures": [
                 ""
@@ -691,7 +787,10 @@
                     "cardKeywordType": 0,
                     "value": 0
                 }
-            ]
+            ],
+            "generatedEnColor": 0,
+            "generatedEnCount": 0,
+            "generatedEnCanIncrease": false
         }
     ]
 }

@@ -1,34 +1,34 @@
-﻿,cardName,cardColor,cardType,bp,requiredEnColor,requiredEnCost,requiredApCost,cardTrigger,effectText,cardFeatures,cardKeywords
-UA11BT_GNT-1-001,이마이 노부메,2,2,2000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-002,이마이 노부메,2,5,4000,2,4,1,9,어택시) 한턴에 한 번 내 프론트 라인에 카드 한 장을 눕이는 것으로 이 카드 엑티브,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-003,3,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-004,4,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-005,5,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-006,6,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-007,7,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-008,8,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-009,9,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-010,10,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-011,11,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-012,12,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-013,13,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-014,14,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-015,15,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-016,16,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-017,17,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-018,18,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-019,19,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-020,20,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-021,21,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-022,22,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-023,23,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-024,24,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-025,25,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-026,26,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-027,27,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-028,28,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-029,29,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-030,30,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-031,31,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-032,32,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
-UA11BT_GNT-1-033,33,2,2,3000,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]"
+cardID,cardName,cardColor,cardType,bp,requiredEnColor,requiredEnCost,requiredApCost,cardTrigger,effectText,cardFeatures,cardKeywords,generatedEnColor,generatedEnCount,generatedEnCanIncrease
+UA11BT_GNT-1-001,이마이 노부메,2,2,2000,2,0,1,11,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-002,이마이 노부메,2,5,4000,2,4,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-003,사사키 이사부로,2,2,3500,2,3,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-004,사루토비 아야메,2,2,1000,2,0,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,TRUE
+UA11BT_GNT-1-005,사루토비 아야메,2,2,1500,2,1,1,11,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-006,사루토비 아야메,2,5,3000,2,3,1,2,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-007,도쿠가와 시게시게,2,2,2000,2,2,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-008,도쿠가와 소요,2,2,1000,2,0,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-009,하토리 젠조,2,2,2000,2,0,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-010,하토리 젠조,2,2,2000,2,2,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-011,하토리 젠조,2,2,3500,2,4,1,4,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-012,마츠다이라 카타쿠리코,2,2,1500,2,1,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,2,FALSE
+UA11BT_GNT-1-013,오키타 소고,2,2,1500,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-014,오키타 소고,2,2,3000,2,2,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-015,오키타 소고,2,5,3500,2,3,1,2,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-016,콘도 이사오,2,2,3000,2,0,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,2,FALSE
+UA11BT_GNT-1-017,콘도 이사오,2,2,2500,2,2,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,TRUE
+UA11BT_GNT-1-018,콘도 이사오,2,2,4000,2,4,2,5,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-019,사이토 시마루,2,2,2000,2,0,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-020,사사키 테츠노스케,2,2,3000,2,3,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,2,FALSE
+UA11BT_GNT-1-021,히지카타 텐코,2,2,4000,2,10,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,2,FALSE
+UA11BT_GNT-1-022,히지카타 토시로,2,2,1500,2,0,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-023,히지카타 토시로,2,2,2000,2,1,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-024,히지카타 토시로,2,5,4000,2,5,1,2,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-025,야마자키 사가루,2,2,1500,2,1,1,0,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-026,사카타 긴코,2,2,3000,2,2,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-027,사카타 긴토키,2,2,3000,2,3,1,11,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-028,닌자의 마을,2,4,,2,3,1,9,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-029,국중법도,2,3,,2,3,1,11,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",0,0,FALSE
+UA11BT_GNT-1-030,장군의 이름으로 명한다,2,3,,2,3,1,3,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",0,0,FALSE
+UA11BT_GNT-1-031,진선조 바주카,2,3,,2,4,1,3,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",0,0,FALSE
+UA11BT_GNT-1-032,닌자 면허,2,3,,2,3,1,10,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",2,1,FALSE
+UA11BT_GNT-1-033,히지카타 스페셜,2,3,,2,3,1,1,,"[""""]","[{""cardKeywordType"":0,""value"":0}]",0,0,FALSE
