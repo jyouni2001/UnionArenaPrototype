@@ -111,6 +111,112 @@
                     "count": 1
                 }
             ]
+        },
+        {
+            "deckId": "16af640257964ff484b707086cbb9bc5",
+            "deckName": "무작위 50장 덱",
+            "cards": [
+                {
+                    "cardId": "UA11BT_GNT-1-018",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-002",
+                    "count": 4
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-014",
+                    "count": 4
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-030",
+                    "count": 3
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-004",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-016",
+                    "count": 2
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-025",
+                    "count": 3
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-007",
+                    "count": 3
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-012",
+                    "count": 2
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-028",
+                    "count": 2
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-006",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-008",
+                    "count": 4
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-021",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-013",
+                    "count": 3
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-033",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-017",
+                    "count": 2
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-020",
+                    "count": 2
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-027",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-024",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-023",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-011",
+                    "count": 4
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-010",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-001",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-032",
+                    "count": 1
+                },
+                {
+                    "cardId": "UA11BT_GNT-1-022",
+                    "count": 1
+                }
+            ]
         }
     ]
 }

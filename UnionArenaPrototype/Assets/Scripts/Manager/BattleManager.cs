@@ -1,5 +1,4 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using Battle;
 using Data;
@@ -17,7 +16,7 @@ namespace Manager
         private const int InitialHandCardCount = 7;
         private const int InitialSecurityCardCount = 7;
 
-        private const string TestDeckID = "1a842164cb924992afd00b54393fec6b";
+        private const string TestDeckID = "a5bf2a5b3ed04db7893df9527031e0c8";
 
         private List<PlayerGameData> playerGameDataList = new List<PlayerGameData>();
         private int nextCardInstanceId = 1;

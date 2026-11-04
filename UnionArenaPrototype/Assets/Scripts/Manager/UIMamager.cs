@@ -1,7 +1,10 @@
+
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+
 using Battle;
+using Enums;
 
 namespace Manager
 {
@@ -16,6 +19,14 @@ namespace Manager
 
         [Header("일반 손패 UI")]
         [SerializeField] private UI.HandView playerHandView; // 내 일반 손패 UI
+
+        [Header("플레이어 프론트라인 UI")]
+        [SerializeField] private UI.FieldSlotView[] playerFrontLineSlots =
+            new UI.FieldSlotView[4]; // 프론트라인 슬롯 UI 배열
+
+        [Header("플레이어 에너지라인 UI")]
+        [SerializeField] private UI.FieldSlotView[] playerEnergyLineSlots =
+            new UI.FieldSlotView[4]; // 에너지라인 슬롯 UI 배열
 
         [Header("멀리건 버튼")]
         [SerializeField] private Button keepButton; // 손패 유지 버튼
@@ -46,7 +57,7 @@ namespace Manager
             base.Initialize(); // 부모 매니저의 초기화 실행
         }
 
-        // 버튼 이벤트 및 손패 변경 이벤트 등록
+        // 버튼 이벤트 및 카드 영역 변경 이벤트 등록
         private void Start()
         {
             // 유지 버튼이 연결되어 있으면 클릭 이벤트 등록
@@ -61,10 +72,10 @@ namespace Manager
                 mulliganButton.onClick.AddListener(MulliganInitialHand); // 멀리건 함수 연결
             }
 
-            // 카드 영역 매니저가 존재하면 손패 변경 이벤트 구독
+            // 카드 영역 매니저가 존재하면 공통 영역 변경 이벤트 구독
             if (CardZoneManager.Instance != null)
             {
-                CardZoneManager.Instance.OnHandChanged += HandleHandChanged; // 손패 변경 이벤트 수신 함수 등록
+                CardZoneManager.Instance.OnZoneChanged += HandleZoneChanged; // 영역 변경 이벤트 수신 함수 등록
             }
             else
             {
@@ -74,7 +85,7 @@ namespace Manager
             StartCoroutine(WaitForInitialHand()); // 최초 손패 준비 상태 확인 시작
         }
 
-        // 버튼 이벤트, 손패 변경 이벤트 및 싱글톤 해제
+        // 버튼 이벤트, 카드 영역 변경 이벤트 및 싱글톤 해제
         private void OnDestroy()
         {
             // 유지 버튼이 연결되어 있으면 클릭 이벤트 해제
@@ -86,13 +97,13 @@ namespace Manager
             // 멀리건 버튼이 연결되어 있으면 클릭 이벤트 해제
             if (mulliganButton != null)
             {
-                mulliganButton.onClick.RemoveListener(MulliganInitialHand); // 멀리건 버튼 함수 연결 해제
+                mulliganButton.onClick.RemoveListener(MulliganInitialHand); // 멀리건 함수 연결 해제
             }
 
-            // 카드 영역 매니저가 존재하면 손패 변경 이벤트 구독 해제
+            // 카드 영역 매니저가 존재하면 공통 영역 변경 이벤트 구독 해제
             if (CardZoneManager.Instance != null)
             {
-                CardZoneManager.Instance.OnHandChanged -= HandleHandChanged; // 손패 변경 이벤트 수신 함수 해제
+                CardZoneManager.Instance.OnZoneChanged -= HandleZoneChanged; // 영역 변경 이벤트 수신 함수 해제
             }
 
             // 현재 인스턴스가 싱글톤으로 등록된 객체일 때만 초기화
@@ -102,8 +113,10 @@ namespace Manager
             }
         }
 
-        // 손패 변경 이벤트 수신
-        private void HandleHandChanged(PlayerGameData playerData)
+        // 카드 영역 변경 이벤트 수신
+        private void HandleZoneChanged(
+            PlayerGameData playerData,
+            BattleEnums.CardZone changedZone)
         {
             // 전투 매니저 또는 내 플레이어 데이터가 준비되지 않았다면 갱신 중단
             if (BattleManager.Instance == null ||
@@ -112,13 +125,23 @@ namespace Manager
                 return;
             }
 
-            // 상대방의 손패가 변경된 경우 내 손패 UI는 갱신하지 않음
+            // 상대방 데이터가 변경된 경우 내 UI는 갱신하지 않음
             if (playerData != BattleManager.Instance.LocalPlayerData)
             {
                 return;
             }
 
-            RefreshPlayerHand(); // 내 손패 데이터로 일반 손패 UI 갱신
+            // 변경된 카드 영역에 맞는 UI 갱신
+            switch (changedZone)
+            {
+                case BattleEnums.CardZone.Hand:
+                    RefreshPlayerHand(); // 일반 손패 UI 갱신
+                    break;
+
+                case BattleEnums.CardZone.Field:
+                    RefreshPlayerField(); // 필드 UI 갱신
+                    break;
+            }
         }
 
         // 최초 손패 준비 완료 대기
@@ -157,8 +180,9 @@ namespace Manager
                 return;
             }
 
+            // 현재 손패 데이터를 멀리건 UI에 전달
             mulliganHandView.SetCards(
-                BattleManager.Instance.LocalPlayerData.hand); // 현재 손패 데이터를 멀리건 UI에 전달
+                BattleManager.Instance.LocalPlayerData.hand);
         }
 
         // 일반 손패 표시
@@ -173,8 +197,115 @@ namespace Manager
                 return;
             }
 
+            // 현재 손패 데이터를 일반 손패 UI에 전달
             playerHandView.SetCards(
-                BattleManager.Instance.LocalPlayerData.hand); // 현재 손패 데이터를 일반 손패 UI에 전달
+                BattleManager.Instance.LocalPlayerData.hand);
+        }
+
+        // 플레이어 필드 UI 갱신
+        public void RefreshPlayerField()
+        {
+            // 전투 매니저 또는 플레이어 데이터가 없으면 갱신 중단
+            if (BattleManager.Instance == null ||
+                BattleManager.Instance.LocalPlayerData == null)
+            {
+                return;
+            }
+
+            PlayerGameData playerData =
+                BattleManager.Instance.LocalPlayerData; // 현재 플레이어 데이터
+
+            // 기존 프론트라인 카드 UI 초기화
+            ClearFieldSlots(playerFrontLineSlots);
+
+            // 기존 에너지라인 카드 UI 초기화
+            ClearFieldSlots(playerEnergyLineSlots);
+
+            // 필드 카드 목록이 없으면 갱신 중단
+            if (playerData.field == null)
+            {
+                return;
+            }
+
+            // 필드에 등록된 카드 순회
+            for (int i = 0; i < playerData.field.Count; i++)
+            {
+                CardRuntimeData card = playerData.field[i]; // 현재 검사할 카드 데이터
+
+                // 카드 데이터가 없으면 건너뛰기
+                if (card == null)
+                {
+                    continue;
+                }
+
+                int slotIndex = card.fieldSlotIndex; // 카드가 배치된 슬롯 번호
+
+                // 프론트라인 카드 표시
+                if (card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
+                {
+                    ShowFieldCard(playerFrontLineSlots, slotIndex, card);
+                }
+                // 에너지라인 카드 표시
+                else if (card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
+                {
+                    ShowFieldCard(playerEnergyLineSlots, slotIndex, card);
+                }
+            }
+        }
+
+        // 필드 슬롯 배열의 카드 UI 초기화
+        private void ClearFieldSlots(UI.FieldSlotView[] slots)
+        {
+            // 슬롯 배열이 없으면 종료
+            if (slots == null)
+            {
+                return;
+            }
+
+            // 모든 슬롯 순회
+            for (int i = 0; i < slots.Length; i++)
+            {
+                // 슬롯 연결이 없으면 건너뛰기
+                if (slots[i] == null)
+                {
+                    continue;
+                }
+
+                slots[i].ClearCard(); // 슬롯에 표시된 카드 숨김
+            }
+        }
+
+        // 지정한 필드 슬롯에 카드 표시
+        private void ShowFieldCard(
+            UI.FieldSlotView[] slots,
+            int slotIndex,
+            CardRuntimeData card)
+        {
+            // 슬롯 배열이 없으면 종료
+            if (slots == null)
+            {
+                return;
+            }
+
+            // 슬롯 번호가 배열 범위를 벗어나면 표시 중단
+            if (slotIndex < 0 || slotIndex >= slots.Length)
+            {
+                Debug.LogWarning(
+                    $"UIManager: 잘못된 필드 슬롯 번호입니다. SlotIndex: {slotIndex}");
+
+                return;
+            }
+
+            // 해당 슬롯 UI가 연결되지 않았다면 표시 중단
+            if (slots[slotIndex] == null)
+            {
+                Debug.LogWarning(
+                    $"UIManager: 필드 슬롯 UI가 연결되지 않았습니다. SlotIndex: {slotIndex}");
+
+                return;
+            }
+
+            slots[slotIndex].ShowCard(card); // 해당 슬롯에 카드 표시
         }
 
         // 멀리건 패널 표시
@@ -210,7 +341,8 @@ namespace Manager
             SetMulliganButtons(false); // 멀리건 버튼 비활성화
             HideMulliganPanel(); // 멀리건 패널 숨김
 
-            bool success = BattleManager.Instance.KeepInitialHand(); // 최초 손패 유지 처리 결과
+            bool success =
+                BattleManager.Instance.KeepInitialHand(); // 최초 손패 유지 처리 결과
 
             // 손패 유지 처리에 실패한 경우 버튼과 패널 복구
             if (!success)
@@ -222,6 +354,7 @@ namespace Manager
             }
 
             RefreshPlayerHand(); // 유지한 손패를 일반 손패 UI에 표시
+            RefreshPlayerField(); // 현재 필드 UI 갱신
         }
 
         // 최초 손패 멀리건
@@ -237,7 +370,8 @@ namespace Manager
             SetMulliganButtons(false); // 멀리건 버튼 비활성화
             HideMulliganPanel(); // 멀리건 패널 숨김
 
-            bool success = BattleManager.Instance.MulliganInitialHand(); // 멀리건 처리 결과
+            bool success =
+                BattleManager.Instance.MulliganInitialHand(); // 멀리건 처리 결과
 
             // 멀리건 처리에 실패한 경우 버튼과 패널 복구
             if (!success)
@@ -248,7 +382,11 @@ namespace Manager
                 return;
             }
 
-            RefreshPlayerHand(); // 새로 받은 손패를 일반 손패 UI에 표시
+            RefreshMulliganHand(); // 새로 받은 손패를 멀리건 UI에 표시
+            ShowMulliganPanel(); // 멀리건 패널 다시 표시
+            SetMulliganButtons(true); // 멀리건 버튼 다시 활성화
+
+            isProcessing = false; // 다음 버튼 입력을 허용
         }
 
         // 멀리건 버튼 활성화 상태 변경

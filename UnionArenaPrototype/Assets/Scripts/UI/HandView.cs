@@ -1,14 +1,32 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using Battle;
+using Manager;
 
 namespace UI
 {
-    // 손패 데이터를 카드 UI에 표시하는 클래스
+    // 손패 데이터를 카드 UI에 표시하고 드래그를 관리하는 클래스
     public class HandView : MonoBehaviour
     {
         [Header("손패 카드 UI")]
         [SerializeField] private List<CardView> cardViews = new List<CardView>(); // 카드 UI 목록
+
+        [Header("드래그 UI")]
+        [SerializeField] private RectTransform dragLayer; // 드래그 UI 표시 영역
+        [SerializeField] private CardView draggingCard; // 마우스를 따라다니는 카드 UI
+        [SerializeField] private Canvas rootCanvas; // 화면 좌표 변환에 사용할 Canvas
+
+        private CardView _originalCardView; // 드래그를 시작한 원래 손패 카드
+        private CanvasGroup _originalCardCanvasGroup; // 원본 카드의 표시 및 입력 제어
+        private int _originalCardIndex = -1; // 드래그를 시작한 손패 순서
+        private bool _isDragging = false; // 현재 드래그 진행 여부
+
+        private float _originalCanvasAlpha; // 드래그 전 원본 카드 투명도
+        private bool _originalBlocksRaycasts; // 드래그 전 원본 카드 입력 차단 상태
+        private bool _originalInteractable; // 드래그 전 원본 카드 상호작용 상태
+        private bool _draggingRaycastTarget; // 드래그 전 복제 카드 입력 차단 상태
 
         // 손패 데이터를 카드 UI에 반영
         public void SetCards(IReadOnlyList<CardRuntimeData> handCards)
@@ -35,7 +53,7 @@ namespace UI
 
             for (int i = 0; i < cardViews.Count; i++)
             {
-                CardView cardView = cardViews[i];
+                CardView cardView = cardViews[i]; // 현재 카드 UI
 
                 if (cardView == null)
                 {
@@ -44,7 +62,13 @@ namespace UI
                 }
 
                 bool hasCard = i < handCards.Count; // 해당 순번에 카드가 있는지 확인
+
                 cardView.gameObject.SetActive(hasCard); // 카드 데이터 유무에 따라 활성화
+
+                cardView.SetDragEvents(
+                    HandleBeginDrag,
+                    HandleDrag,
+                    HandleEndDrag); // 손패 카드 드래그 이벤트 연결
 
                 if (!hasCard)
                 {
@@ -63,6 +87,223 @@ namespace UI
             }
         }
 
+        // 드래그 시작
+        private void HandleBeginDrag(CardView cardView, PointerEventData eventData)
+        {
+            if (_isDragging || cardView == null)
+            {
+                return;
+            }
+
+            if (dragLayer == null || draggingCard == null || rootCanvas == null)
+            {
+                Debug.LogError("HandView: DragLayer, DraggingCard, Canvas 연결을 확인하세요.");
+                return;
+            }
+
+            string cardID = cardView.GetCardID(); // 드래그할 카드 ID 가져오기
+
+            if (string.IsNullOrEmpty(cardID))
+            {
+                Debug.LogError("HandView: 드래그할 카드의 ID가 없습니다.");
+                return;
+            }
+
+            _originalCardView = cardView; // 드래그를 시작한 카드 저장
+            _originalCardIndex = cardViews.IndexOf(cardView); // 원래 손패 UI 순서 저장
+
+            if (_originalCardIndex < 0)
+            {
+                _originalCardView = null; // 손패 목록에 없는 카드 참조 해제
+                return;
+            }
+
+            _originalCardCanvasGroup =
+                _originalCardView.GetComponent<CanvasGroup>(); // 원본 카드 CanvasGroup 확인
+
+            if (_originalCardCanvasGroup == null)
+            {
+                _originalCardCanvasGroup =
+                    _originalCardView.gameObject.AddComponent<CanvasGroup>(); // 없으면 추가
+            }
+
+            _originalCanvasAlpha = _originalCardCanvasGroup.alpha; // 기존 투명도 저장
+            _originalBlocksRaycasts = _originalCardCanvasGroup.blocksRaycasts; // 기존 입력 차단 상태 저장
+            _originalInteractable = _originalCardCanvasGroup.interactable; // 기존 상호작용 상태 저장
+
+            draggingCard.SetCard(cardID); // 드래그 카드 이미지 설정
+            draggingCard.gameObject.SetActive(true); // 드래그 카드 표시
+
+            Image draggingImage = draggingCard.GetCardImage(); // 드래그 카드 이미지 가져오기
+
+            if (draggingImage != null)
+            {
+                _draggingRaycastTarget = draggingImage.raycastTarget; // 기존 Raycast 상태 저장
+                draggingImage.raycastTarget = false; // 드래그 카드가 입력을 가로채지 않도록 설정
+            }
+
+            _originalCardCanvasGroup.alpha = 0f; // 원본 카드만 투명하게 표시
+            _originalCardCanvasGroup.blocksRaycasts = false; // 원본 카드 입력 차단 해제
+            _originalCardCanvasGroup.interactable = false; // 원본 카드 상호작용 비활성화
+
+            _isDragging = true; // 드래그 상태 시작
+
+            UpdateDraggingCardPosition(eventData); // 드래그 시작 위치 반영
+        }
+
+        // 드래그 중 마우스 위치 갱신
+        private void HandleDrag(CardView cardView, PointerEventData eventData)
+        {
+            if (!_isDragging)
+            {
+                return;
+            }
+
+            UpdateDraggingCardPosition(eventData); // 드래그 카드가 마우스를 따라가도록 이동
+        }
+
+        // 드래그 종료
+        private void HandleEndDrag(CardView cardView, PointerEventData eventData)
+        {
+            if (!_isDragging)
+            {
+                return;
+            }
+
+            int fromIndex = _originalCardIndex; // 이동 전 카드 순서
+            int toIndex = GetDropIndex(eventData); // 마우스 위치에 따른 삽입 순서
+
+            RestoreOriginalCard(); // 원본 카드 상태 복구
+            HideDraggingCard(); // 드래그 카드 숨김
+
+            _isDragging = false; // 드래그 상태 종료
+            _originalCardView = null; // 원본 카드 참조 해제
+            _originalCardCanvasGroup = null; // CanvasGroup 참조 해제
+            _originalCardIndex = -1; // 기존 순서 초기화
+
+            // 이동할 위치가 유효하면 실제 손패 데이터 순서 변경
+            if (BattleManager.Instance != null &&
+                BattleManager.Instance.LocalPlayerData != null &&
+                CardZoneManager.Instance != null)
+            {
+                CardZoneManager.Instance.ReorderHand(
+                    BattleManager.Instance.LocalPlayerData,
+                    fromIndex,
+                    toIndex); // 실제 손패 목록 재정렬
+            }
+        }
+
+        // 마우스 위치에 해당하는 손패 삽입 순서 계산
+        private int GetDropIndex(PointerEventData eventData)
+        {
+            int insertIndex = 0; // 이동할 카드가 들어갈 위치
+
+            Camera uiCamera = rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : rootCanvas.worldCamera; // Canvas 렌더 모드에 맞는 카메라
+
+            // 드래그 중인 원본 카드를 제외하고 다른 카드 위치 확인
+            for (int i = 0; i < cardViews.Count; i++)
+            {
+                CardView cardView = cardViews[i]; // 현재 비교할 카드 UI
+
+                if (cardView == null ||
+                    cardView == _originalCardView ||
+                    !cardView.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                RectTransform cardRect = cardView.transform as RectTransform; // 카드 위치 정보
+
+                if (cardRect == null)
+                {
+                    continue;
+                }
+
+                float cardCenterX = RectTransformUtility.WorldToScreenPoint(
+                    uiCamera,
+                    cardRect.TransformPoint(cardRect.rect.center)).x; // 카드 중앙의 화면 X 좌표
+
+                if (eventData.position.x < cardCenterX)
+                {
+                    return insertIndex; // 현재 카드 앞에 삽입
+                }
+
+                insertIndex++; // 다음 카드 위치 확인
+            }
+
+            return insertIndex; // 모든 카드 뒤에 삽입
+        }
+
+        // 원본 카드 상태 복구
+        private void RestoreOriginalCard()
+        {
+            if (_originalCardCanvasGroup == null)
+            {
+                return;
+            }
+
+            _originalCardCanvasGroup.alpha = _originalCanvasAlpha; // 기존 투명도 복구
+            _originalCardCanvasGroup.blocksRaycasts = _originalBlocksRaycasts; // 기존 입력 차단 상태 복구
+            _originalCardCanvasGroup.interactable = _originalInteractable; // 기존 상호작용 상태 복구
+        }
+
+        // 드래그 카드 숨김 및 입력 설정 복구
+        private void HideDraggingCard()
+        {
+            if (draggingCard == null)
+            {
+                return;
+            }
+
+            Image draggingImage = draggingCard.GetCardImage(); // 드래그 카드 이미지 가져오기
+
+            if (draggingImage != null)
+            {
+                draggingImage.raycastTarget = _draggingRaycastTarget; // 기존 Raycast 상태 복구
+            }
+
+            draggingCard.gameObject.SetActive(false); // 드래그 카드 숨김
+        }
+
+        // 마우스 위치를 DragLayer의 로컬 좌표로 변환
+        private void UpdateDraggingCardPosition(PointerEventData eventData)
+        {
+            if (dragLayer == null || draggingCard == null || rootCanvas == null)
+            {
+                return;
+            }
+
+            Camera uiCamera = rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : rootCanvas.worldCamera; // Canvas 렌더 모드에 맞는 UI 카메라 선택
+
+            if (rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay && uiCamera == null)
+            {
+                Debug.LogError("HandView: Canvas의 Render Camera가 연결되지 않았습니다.");
+                return;
+            }
+
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                dragLayer,
+                eventData.position,
+                uiCamera,
+                out Vector2 localPoint))
+            {
+                RectTransform draggingRect =
+                    draggingCard.transform as RectTransform; // 드래그 카드 RectTransform
+
+                if (draggingRect == null)
+                {
+                    Debug.LogError("HandView: DraggingCard의 RectTransform을 찾을 수 없습니다.");
+                    return;
+                }
+
+                draggingRect.anchoredPosition = localPoint; // 마우스 위치에 드래그 카드 배치
+            }
+        }
+
         // 모든 카드 UI 비활성화
         public void ClearCards()
         {
@@ -78,6 +319,18 @@ namespace UI
                     cardView.gameObject.SetActive(false);
                 }
             }
+        }
+
+        // 오브젝트가 비활성화될 때 드래그 상태 정리
+        private void OnDisable()
+        {
+            RestoreOriginalCard(); // 원본 카드 상태 복구
+            HideDraggingCard(); // 드래그 카드 숨김
+
+            _isDragging = false; // 드래그 상태 초기화
+            _originalCardView = null; // 원본 카드 참조 해제
+            _originalCardCanvasGroup = null; // CanvasGroup 참조 해제
+            _originalCardIndex = -1; // 기존 순서 초기화
         }
     }
 }
