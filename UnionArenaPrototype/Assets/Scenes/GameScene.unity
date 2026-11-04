@@ -4800,6 +4800,7 @@ MonoBehaviour:
   mulliganPanel: {fileID: 1851955584}
   mulliganHandView: {fileID: 2098986587}
   playerHandView: {fileID: 2038546815}
+  cardDetailView: {fileID: 0}
   playerFrontLineSlots:
   - {fileID: 283885347}
   - {fileID: 1197543977}

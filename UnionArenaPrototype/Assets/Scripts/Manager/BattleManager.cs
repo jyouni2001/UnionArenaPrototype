@@ -16,13 +16,14 @@ namespace Manager
         private const int InitialHandCardCount = 7;
         private const int InitialSecurityCardCount = 7;
 
-        private const string TestDeckID = "a5bf2a5b3ed04db7893df9527031e0c8";
+        private const string TestDeckID = "a64e00e5f2414498848063059de16ae2";
 
         private List<PlayerGameData> playerGameDataList = new List<PlayerGameData>();
         private int nextCardInstanceId = 1;
 
         private PlayerGameData localPlayerData;
         private PlayerGameData opponentPlayerData;
+        private PlayerGameData currentTurnPlayer;
         private BattleEnums.PlayerType localPlayerType;
 
         private bool isWaitingForInitialHandChoice = false;
@@ -30,6 +31,7 @@ namespace Manager
         public IReadOnlyList<PlayerGameData> PlayerGameDataList => playerGameDataList;
         public PlayerGameData LocalPlayerData => localPlayerData;
         public PlayerGameData OpponentPlayerData => opponentPlayerData;
+        public PlayerGameData CurrentTurnPlayer => currentTurnPlayer;
         public BattleEnums.PlayerType LocalPlayerType => localPlayerType;
         public bool IsWaitingForInitialHandChoice => isWaitingForInitialHandChoice;
 
@@ -63,6 +65,7 @@ namespace Manager
 
             localPlayerData = null;
             opponentPlayerData = null;
+            currentTurnPlayer = null;
             isWaitingForInitialHandChoice = false;
 
             for (int i = 0; i < MaxPlayerCount; i++)
@@ -77,7 +80,7 @@ namespace Manager
             base.Initialize();
         }
 
-        // 씬 시작 시 테스트 덱을 PlayerA에게 등록하고 최초 손패 준비
+        // 씬 시작 시 테스트 덱을 로컬 플레이어에게 등록하고 최초 손패 준비
         private void Start()
         {
             if (localPlayerData == null)
@@ -86,20 +89,18 @@ namespace Manager
                 return;
             }
 
-            // 테스트 덱 초기화
             if (!InitializePlayerDeck(TestDeckID, localPlayerData.playerIndex))
             {
                 return;
             }
 
-            // 최초 게임 시작 전 덱 셔플
-            if (!CardZoneManager.Instance.ShuffleDeck(localPlayerData))
+            if (CardZoneManager.Instance == null ||
+                !CardZoneManager.Instance.ShuffleDeck(localPlayerData))
             {
                 Debug.LogError("BattleManager: 최초 덱 셔플에 실패했습니다.");
                 return;
             }
 
-            // 최초 손패 7장 준비
             if (!DrawInitialHand())
             {
                 Debug.LogError("BattleManager: 최초 손패 준비에 실패했습니다.");
@@ -213,7 +214,6 @@ namespace Manager
                 return false;
             }
 
-            // 카드 데이터와 수량을 먼저 검사하여 잘못된 덱의 일부만 등록되는 상황 방지
             int totalCardCount = 0;
             List<CardJsonData> cardDataList = new List<CardJsonData>();
 
@@ -243,7 +243,6 @@ namespace Manager
                 cardDataList.Add(cardData);
             }
 
-            // 덱 전체 카드 수 검증
             if (totalCardCount != RequiredDeckCardCount)
             {
                 Debug.LogError(
@@ -252,7 +251,6 @@ namespace Manager
                 return false;
             }
 
-            // 검증된 카드 데이터를 수량만큼 개별 인스턴스로 생성
             for (int i = 0; i < deckData.Cards.Count; i++)
             {
                 DeckCardData deckCard = deckData.Cards[i];
@@ -311,13 +309,13 @@ namespace Manager
             }
 
             if (localPlayerData.deck == null ||
-                localPlayerData.deck.Count < InitialHandCardCount + InitialSecurityCardCount)
+                localPlayerData.deck.Count <
+                InitialHandCardCount + InitialSecurityCardCount)
             {
                 Debug.LogError("DrawInitialHand: 덱에 필요한 카드 수가 부족합니다.");
                 return false;
             }
 
-            // 1장 드로우 함수를 7회 호출하여 최초 손패 준비
             for (int i = 0; i < InitialHandCardCount; i++)
             {
                 if (!CardZoneManager.Instance.DrawOneCard(localPlayerData))
@@ -355,6 +353,7 @@ namespace Manager
             }
 
             isWaitingForInitialHandChoice = false;
+            StartLocalFirstTurn();
 
             Debug.Log("BattleManager: 최초 손패 유지 및 시큐리티 준비 완료.");
             return true;
@@ -374,13 +373,11 @@ namespace Manager
                 return false;
             }
 
-            // 기존 손패 7장을 현재 순서 그대로 덱 아래로 이동
             if (!CardZoneManager.Instance.ReturnHandToDeckBottom(localPlayerData))
             {
                 return false;
             }
 
-            // 덱 맨 위에서 새 손패 7장을 드로우
             if (!CardZoneManager.Instance.DrawCards(
                 localPlayerData,
                 InitialHandCardCount))
@@ -388,14 +385,12 @@ namespace Manager
                 return false;
             }
 
-            // 남은 덱을 셔플
             if (!CardZoneManager.Instance.ShuffleDeck(localPlayerData))
             {
                 Debug.LogError("MulliganInitialHand: 남은 덱 셔플에 실패했습니다.");
                 return false;
             }
 
-            // 셔플된 덱 맨 위에서 시큐리티 7장 이동
             if (!CardZoneManager.Instance.MoveCardsToSecurity(
                 localPlayerData,
                 InitialSecurityCardCount))
@@ -404,9 +399,109 @@ namespace Manager
             }
 
             isWaitingForInitialHandChoice = false;
+            StartLocalFirstTurn();
 
             Debug.Log("BattleManager: 멀리건 및 시큐리티 준비 완료.");
             return true;
+        }
+
+        // 로컬 플레이어의 첫 턴 시작
+        private void StartLocalFirstTurn()
+        {
+            if (localPlayerData == null)
+            {
+                Debug.LogError("BattleManager: 첫 턴을 시작할 플레이어 데이터가 없습니다.");
+                return;
+            }
+
+            if (localPlayerData.turnCount > 0)
+            {
+                Debug.LogWarning("BattleManager: 첫 턴이 이미 시작되었습니다.");
+                return;
+            }
+
+            BeginTurn(localPlayerData);
+        }
+
+        // 지정 플레이어의 턴 시작 처리
+        private bool BeginTurn(PlayerGameData playerData)
+        {
+            if (playerData == null)
+            {
+                Debug.LogError("BattleManager: 턴을 시작할 플레이어 데이터가 없습니다.");
+                return false;
+            }
+
+            int nextTurnCount = playerData.turnCount + 1;
+            int targetAPCardCount =
+                GetTargetAPCardCount(playerData, nextTurnCount);
+
+            if (!playerData.RefreshAP(targetAPCardCount))
+            {
+                Debug.LogError("BattleManager: AP 준비에 실패했습니다.");
+                return false;
+            }
+
+            playerData.turnCount = nextTurnCount;
+            currentTurnPlayer = playerData;
+
+            bool isPlayerOneFirstTurn =
+                playerData.playerIndex == 0 &&
+                playerData.turnCount == 1;
+
+            // 선공 첫 턴을 제외하고 턴 시작 시 카드 1장 드로우
+            if (!isPlayerOneFirstTurn &&
+                playerData.deck != null &&
+                playerData.deck.Count > 0 &&
+                CardZoneManager.Instance != null)
+            {
+                if (!CardZoneManager.Instance.DrawOneCard(playerData))
+                {
+                    Debug.LogWarning("BattleManager: 턴 시작 드로우에 실패했습니다.");
+                }
+            }
+
+            Debug.Log(
+                $"BattleManager: 턴 시작. 플레이어 인덱스 = {playerData.playerIndex}, " +
+                $"턴 = {playerData.turnCount}, 활성 AP = {playerData.activeAP}");
+
+            return true;
+        }
+
+        // 플레이어 턴과 턴 번호에 필요한 AP 카드 수 반환
+        private int GetTargetAPCardCount(
+            PlayerGameData playerData,
+            int turnNumber)
+        {
+            if (playerData.playerIndex == 0)
+            {
+                return Mathf.Min(turnNumber, 3);
+            }
+
+            if (turnNumber == 1)
+            {
+                return 2;
+            }
+
+            return Mathf.Min(turnNumber, 3);
+        }
+
+        // 현재 턴을 마치고 상대 턴 시작
+        public bool EndCurrentTurn()
+        {
+            if (currentTurnPlayer == null ||
+                isWaitingForInitialHandChoice)
+            {
+                Debug.LogWarning("BattleManager: 종료할 턴이 없습니다.");
+                return false;
+            }
+
+            PlayerGameData nextPlayer =
+                currentTurnPlayer == localPlayerData
+                    ? opponentPlayerData
+                    : localPlayerData;
+
+            return BeginTurn(nextPlayer);
         }
     }
 }
