@@ -45,6 +45,10 @@ namespace Manager
         [Header("블록 선택 UI")]
         [SerializeField] private UI.BlockChoiceView blockChoiceView; // 블록 카드 선택 패널
 
+        [Header("게임 종료 UI")]
+        [SerializeField] private GameObject gameOverPanel; // 게임 종료 패널
+        [SerializeField] private Text gameOverText; // 승패 결과 텍스트
+
         [Header("멀리건 버튼")]
         [SerializeField] private Button keepButton; // 손패 유지 버튼
         [SerializeField] private Button mulliganButton; // 멀리건 버튼
@@ -80,7 +84,7 @@ namespace Manager
             base.Initialize();
         }
 
-        // 버튼과 카드 영역 변경 이벤트를 연결
+        // 버튼과 게임 이벤트를 연결
         private void Start()
         {
             if (keepButton != null)
@@ -98,6 +102,11 @@ namespace Manager
                 endTurnButton.onClick.AddListener(HandleEndTurnButtonClicked);
             }
 
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(false);
+            }
+
             if (CardZoneManager.Instance != null)
             {
                 CardZoneManager.Instance.OnZoneChanged += HandleZoneChanged;
@@ -111,6 +120,7 @@ namespace Manager
             {
                 BattleManager.Instance.OnBlockChoiceRequested += HandleBlockChoiceRequested;
                 BattleManager.Instance.OnCombatFieldChanged += HandleCombatFieldChanged;
+                BattleManager.Instance.OnGameEnded += HandleGameEnded;
             }
 
             StartCoroutine(WaitForInitialHand());
@@ -155,6 +165,7 @@ namespace Manager
             {
                 BattleManager.Instance.OnBlockChoiceRequested -= HandleBlockChoiceRequested;
                 BattleManager.Instance.OnCombatFieldChanged -= HandleCombatFieldChanged;
+                BattleManager.Instance.OnGameEnded -= HandleGameEnded;
             }
 
             if (Instance == this)
@@ -199,7 +210,8 @@ namespace Manager
             bool isLocalPlayer = playerData == BattleManager.Instance.LocalPlayerData;
             bool isOpponentPlayer = playerData == BattleManager.Instance.OpponentPlayerData;
 
-            if ((changedZone == BattleEnums.CardZone.Security || changedZone == BattleEnums.CardZone.Trash) && (isLocalPlayer || isOpponentPlayer))
+            if ((changedZone == BattleEnums.CardZone.Security || changedZone == BattleEnums.CardZone.Trash) &&
+                (isLocalPlayer || isOpponentPlayer))
             {
                 RefreshSecurityViews();
             }
@@ -231,6 +243,39 @@ namespace Manager
             {
                 RefreshOpponentField();
             }
+        }
+
+        // 게임이 끝나면 승패 패널을 표시
+        private void HandleGameEnded(PlayerGameData winner, PlayerGameData loser)
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            bool localPlayerWon = winner == BattleManager.Instance.LocalPlayerData;
+
+            if (gameOverText != null)
+            {
+                gameOverText.text = localPlayerWon ? "승리!" : "패배";
+            }
+
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(true);
+            }
+
+            if (endTurnButton != null)
+            {
+                endTurnButton.interactable = false;
+            }
+
+            if (blockChoiceView != null)
+            {
+                blockChoiceView.Hide();
+            }
+
+            Debug.Log(localPlayerWon ? "UIManager: 게임 승리 화면을 표시합니다." : "UIManager: 게임 패배 화면을 표시합니다.");
         }
 
         // 상대 공격에 대응할 블록 선택 UI를 표시
@@ -419,7 +464,7 @@ namespace Manager
             RefreshFieldSlots(BattleManager.Instance.OpponentPlayerData, opponentFrontLineSlots, opponentEnergyLineSlots);
         }
 
-        // 플레이어 필드 데이터를 해당 슬롯 UI에 표시
+        // 플레이어 필드 데이터를 슬롯 UI에 표시
         private void RefreshFieldSlots(PlayerGameData playerData, UI.FieldSlotView[] frontLineSlots, UI.FieldSlotView[] energyLineSlots)
         {
             ClearFieldSlots(frontLineSlots);
@@ -493,7 +538,7 @@ namespace Manager
             }
         }
 
-        // 에너지 규칙 계산 결과를 에너지 표시 UI에 전달
+        // 에너지 계산 결과를 에너지 표시 UI에 전달
         private void RefreshPlayerEnergy()
         {
             if (playerEnergyAreaView == null)
@@ -523,7 +568,7 @@ namespace Manager
             }
         }
 
-        // 지정한 슬롯에 필드 카드를 표시
+        // 지정 슬롯에 필드 카드를 표시
         private void ShowFieldCard(UI.FieldSlotView[] slots, int slotIndex, CardRuntimeData card)
         {
             if (slots == null)

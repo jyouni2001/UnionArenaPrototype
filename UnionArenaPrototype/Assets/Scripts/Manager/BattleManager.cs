@@ -23,9 +23,11 @@ namespace Manager
         private PlayerGameData localPlayerData; // 내 플레이어 데이터
         private PlayerGameData opponentPlayerData; // 상대 플레이어 데이터
         private PlayerGameData currentTurnPlayer; // 현재 턴 플레이어 데이터
+        private PlayerGameData winnerPlayerData; // 승리한 플레이어 데이터
         private BattleEnums.PlayerType localPlayerType; // 로컬 플레이어 타입
         private bool isWaitingForInitialHandChoice; // 최초 손패 선택 대기 여부
         private bool isRunningOpponentTurn; // 상대 AI 턴 진행 여부
+        private bool isGameOver; // 게임 종료 여부
 
         private BattleSetupService battleSetupService; // 덱과 최초 손패 준비 서비스
         private TurnFlowService turnFlowService; // 턴 진행 서비스
@@ -37,13 +39,16 @@ namespace Manager
         public PlayerGameData LocalPlayerData => localPlayerData; // 내 플레이어 데이터
         public PlayerGameData OpponentPlayerData => opponentPlayerData; // 상대 플레이어 데이터
         public PlayerGameData CurrentTurnPlayer => currentTurnPlayer; // 현재 턴 플레이어 데이터
+        public PlayerGameData WinnerPlayerData => winnerPlayerData; // 승리한 플레이어 데이터
         public BattleEnums.PlayerType LocalPlayerType => localPlayerType; // 로컬 플레이어 타입
         public bool IsWaitingForInitialHandChoice => isWaitingForInitialHandChoice; // 최초 손패 선택 대기 여부
         public bool IsWaitingForBlock => battleCombatService != null && battleCombatService.IsWaitingForBlock; // 블록 대기 여부
         public bool IsRunningOpponentTurn => isRunningOpponentTurn; // 상대 AI 턴 진행 여부
+        public bool IsGameOver => isGameOver; // 게임 종료 여부
 
         public event Action<PlayerGameData> OnCombatFieldChanged; // 전투 카드 상태 변경 알림
         public event Action<CardRuntimeData> OnBlockChoiceRequested; // 블록 선택 UI 요청
+        public event Action<PlayerGameData, PlayerGameData> OnGameEnded; // 승패 확정 알림
 
         #endregion
 
@@ -89,8 +94,10 @@ namespace Manager
             localPlayerData = null;
             opponentPlayerData = null;
             currentTurnPlayer = null;
+            winnerPlayerData = null;
             isWaitingForInitialHandChoice = false;
             isRunningOpponentTurn = false;
+            isGameOver = false;
             battleSetupService = null;
             turnFlowService = null;
             battleCombatService = null;
@@ -145,7 +152,7 @@ namespace Manager
             return true;
         }
 
-        // 전투 서비스의 카드 상태 변경 알림을 외부에 전달
+        // 전투 서비스의 카드 상태 변경을 외부에 전달
         private void HandleCombatFieldStateChanged(PlayerGameData playerData)
         {
             OnCombatFieldChanged?.Invoke(playerData);
@@ -354,7 +361,7 @@ namespace Manager
 
         #region 공격 및 블록 요청
 
-        // 공격을 선언하고 공격자에 따라 AI 또는 플레이어 방어를 처리
+        // 공격을 선언하고 방어자에 따라 블록 선택 또는 AI 방어를 처리
         public bool TryDeclareAttack(PlayerGameData attackerPlayer, CardRuntimeData attacker,
             out BattleCombatService.Resolution resolution, out PlayerGameData securityOwner,
             out CardRuntimeData revealedSecurityCard, out string errorMessage)
@@ -363,6 +370,12 @@ namespace Manager
             securityOwner = null;
             revealedSecurityCard = null;
             errorMessage = string.Empty;
+
+            if (isGameOver)
+            {
+                errorMessage = "이미 게임이 종료되었습니다.";
+                return false;
+            }
 
             if (!EnsureServicesReady())
             {
@@ -383,7 +396,7 @@ namespace Manager
                 return false;
             }
 
-            // 상대 AI의 공격은 내 블록 선택을 기다림
+            // 상대 AI가 공격하면 내 블록 선택을 기다림
             if (attackerPlayer == opponentPlayerData)
             {
                 List<CardRuntimeData> blockers = GetActiveLocalBlockers();
@@ -394,7 +407,8 @@ namespace Manager
                     return true;
                 }
 
-                return battleCombatService.TryPassBlock(out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
+                // 블록 UI 또는 블록 가능한 카드가 없으면 공격을 통과시킴
+                return ResolvePassedAttack(attackerPlayer, out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
             }
 
             // 내 공격은 상대 AI가 공격을 이길 수 있는 카드로 자동 블록
@@ -405,8 +419,21 @@ namespace Manager
                 return battleCombatService.TryResolveBlock(blocker, out resolution, out errorMessage);
             }
 
-            securityOwner = defenderPlayer;
-            return battleCombatService.TryPassBlock(out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
+            return ResolvePassedAttack(attackerPlayer, out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
+        }
+
+        // 블록하지 않은 공격을 통과시키고 시큐리티가 없으면 게임을 종료
+        private bool ResolvePassedAttack(PlayerGameData attackerPlayer, out BattleCombatService.Resolution resolution,
+            out PlayerGameData securityOwner, out CardRuntimeData revealedSecurityCard, out string errorMessage)
+        {
+            bool success = battleCombatService.TryPassBlock(out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
+
+            if (success && securityOwner != null && (securityOwner.security == null || securityOwner.security.Count == 0))
+            {
+                EndGame(attackerPlayer, securityOwner);
+            }
+
+            return success;
         }
 
         // 내 블록 UI에 표시할 Active FrontLine 카드를 반환
@@ -438,7 +465,7 @@ namespace Manager
             resolution = new BattleCombatService.Resolution(BattleEnums.CombatResolutionType.None, null, blocker);
             errorMessage = string.Empty;
 
-            if (!IsWaitingForBlock || currentTurnPlayer != opponentPlayerData || battleCombatService == null)
+            if (isGameOver || !IsWaitingForBlock || currentTurnPlayer != opponentPlayerData || battleCombatService == null)
             {
                 errorMessage = "현재 내 블록 선택을 기다리는 공격이 없습니다.";
                 return false;
@@ -447,7 +474,7 @@ namespace Manager
             return battleCombatService.TryResolveBlock(blocker, out resolution, out errorMessage);
         }
 
-        // 블록하지 않고 공격을 통과시켜 시큐리티 공개 데이터를 반환
+        // 블록하지 않고 공격을 통과시키고 시큐리티 공개 데이터를 반환
         public bool TryPassLocalBlock(out BattleCombatService.Resolution resolution,
             out PlayerGameData securityOwner, out CardRuntimeData revealedSecurityCard, out string errorMessage)
         {
@@ -456,25 +483,65 @@ namespace Manager
             revealedSecurityCard = null;
             errorMessage = string.Empty;
 
-            if (!IsWaitingForBlock || currentTurnPlayer != opponentPlayerData || battleCombatService == null)
+            if (isGameOver || !IsWaitingForBlock || currentTurnPlayer != opponentPlayerData || battleCombatService == null)
             {
                 errorMessage = "현재 통과할 공격이 없습니다.";
                 return false;
             }
 
-            return battleCombatService.TryPassBlock(out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
+            return ResolvePassedAttack(opponentPlayerData, out resolution, out securityOwner, out revealedSecurityCard, out errorMessage);
         }
 
-        // 공개한 시큐리티 카드를 해당 플레이어의 트래시로 이동
+        // 공개한 시큐리티 카드를 트래시로 이동하고 마지막 카드였으면 게임을 종료
         public bool MoveRevealedSecurityToTrash(PlayerGameData securityOwner, CardRuntimeData securityCard)
         {
-            if (securityOwner == null || securityCard == null || securityOwner.security == null ||
+            if (isGameOver || securityOwner == null || securityCard == null || securityOwner.security == null ||
                 !securityOwner.security.Contains(securityCard) || CardZoneManager.Instance == null)
             {
                 return false;
             }
 
-            return CardZoneManager.Instance.MoveCard(securityOwner, securityCard, BattleEnums.CardZone.Trash);
+            if (!CardZoneManager.Instance.MoveCard(securityOwner, securityCard, BattleEnums.CardZone.Trash))
+            {
+                return false;
+            }
+
+            if (securityOwner.security.Count == 0)
+            {
+                PlayerGameData winner = GetOtherPlayer(securityOwner);
+                EndGame(winner, securityOwner);
+            }
+
+            return true;
+        }
+
+        // 지정 플레이어의 상대 플레이어 데이터를 반환
+        private PlayerGameData GetOtherPlayer(PlayerGameData playerData)
+        {
+            return playerData == localPlayerData ? opponentPlayerData : localPlayerData;
+        }
+
+        // 승리자와 패배자를 기록하고 게임 종료 이벤트를 알림
+        private void EndGame(PlayerGameData winner, PlayerGameData loser)
+        {
+            if (isGameOver || winner == null || loser == null)
+            {
+                return;
+            }
+
+            isGameOver = true;
+            winnerPlayerData = winner;
+
+            if (opponentTurnCoroutine != null)
+            {
+                StopCoroutine(opponentTurnCoroutine);
+                opponentTurnCoroutine = null;
+            }
+
+            isRunningOpponentTurn = false;
+
+            Debug.Log($"BattleManager: 게임 종료. 승자 PlayerIndex = {winner.playerIndex}, 패자 PlayerIndex = {loser.playerIndex}");
+            OnGameEnded?.Invoke(winner, loser);
         }
 
         #endregion
@@ -496,7 +563,7 @@ namespace Manager
         // 턴 서비스를 호출하고 현재 턴 플레이어를 갱신
         private bool BeginTurn(PlayerGameData playerData)
         {
-            if (playerData == null || !EnsureServicesReady())
+            if (isGameOver || playerData == null || !EnsureServicesReady())
             {
                 return false;
             }
@@ -515,7 +582,7 @@ namespace Manager
         // 현재 플레이어 턴을 마치고 다음 플레이어에게 턴을 넘김
         public bool EndCurrentTurn()
         {
-            if (currentTurnPlayer == null || isWaitingForInitialHandChoice ||
+            if (isGameOver || currentTurnPlayer == null || isWaitingForInitialHandChoice ||
                 (isRunningOpponentTurn && currentTurnPlayer != opponentPlayerData))
             {
                 Debug.LogWarning("BattleManager: 종료할 수 있는 턴이 없습니다.");
