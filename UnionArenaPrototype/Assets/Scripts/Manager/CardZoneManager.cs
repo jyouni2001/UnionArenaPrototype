@@ -92,7 +92,8 @@ namespace Manager
             {
                 for (int i = 0; i < pendingZoneUpdates.Count; i++)
                 {
-                    ZoneChangeData pendingData = pendingZoneUpdates[i];
+                    ZoneChangeData pendingData =
+                        pendingZoneUpdates[i];
 
                     if (pendingData.playerData == playerData &&
                         pendingData.zone == zone)
@@ -110,7 +111,7 @@ namespace Manager
             OnZoneChanged?.Invoke(playerData, zone);
         }
 
-        // 여러 카드 이동이 끝난 뒤 모아 둔 이벤트를 한 번씩 전달
+        // 여러 카드 변경이 끝난 뒤 모아 둔 이벤트를 전달
         private bool RunBatched(Func<bool> operation)
         {
             updateBatchDepth++;
@@ -191,6 +192,17 @@ namespace Manager
                        playerData,
                        fromIndex,
                        toIndex);
+        }
+
+        #endregion
+
+        #region 필드 카드 상태 요청
+
+        // 필드 카드 Active 전환을 서비스에 요청
+        public bool ActivateFieldCards(PlayerGameData playerData)
+        {
+            return Service != null &&
+                   Service.ActivateFieldCards(playerData);
         }
 
         #endregion

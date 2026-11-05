@@ -5,39 +5,54 @@ using Data;
 
 namespace Manager
 {
-    // 사용자의 덱 정보를 관리하는 매니저
+    // 덱 저장 데이터의 로드와 저장을 조율하고 덱 조회 요청을 전달
     public class DeckManager : BaseManager
     {
-        public static DeckManager Instance { get; private set; } // 매니저 싱글톤
+        #region 싱글톤 및 덱 데이터
+
+        public static DeckManager Instance { get; private set; }
+
+        private readonly List<DeckData> decks = new List<DeckData>();
+        private string deckSavePath;
+        private bool isLoaded;
 
         public IReadOnlyList<DeckData> Decks
         {
             get
             {
-                EnsureLoaded(); // 덱 데이터 불러오기 확인
+                EnsureLoaded();
                 return decks;
             }
         }
 
-        private List<DeckData> decks = new List<DeckData>(); // 현재 덱 목록
-        private string deckSavePath; // 덱 저장 파일 경로
-        private bool isLoaded; // 덱 데이터 불러오기 여부
+        #endregion
 
-        // 매니저 초기화
+        #region 생명 주기 및 로드 준비
+
+        // 싱글톤을 등록하고 공통 초기화 상태를 기록
         protected override void Initialize()
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(gameObject); // 중복 매니저 제거
+                Destroy(gameObject);
                 return;
             }
 
-            Instance = this; // 싱글톤 등록
+            Instance = this;
 
             base.Initialize();
         }
 
-        // 덱 데이터 초기화 여부 확인
+        // 매니저가 제거될 때 싱글톤 참조 해제
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        // 사용자 데이터가 준비된 뒤 덱 파일을 한 번만 로드
         private bool EnsureLoaded()
         {
             if (isLoaded)
@@ -52,7 +67,7 @@ namespace Manager
                 return false;
             }
 
-            string userID = UserManager.Instance.CurrentUserData.LocalUserID; // 현재 사용자 UID
+            string userID = UserManager.Instance.CurrentUserData.LocalUserID;
 
             if (string.IsNullOrWhiteSpace(userID))
             {
@@ -60,14 +75,18 @@ namespace Manager
                 return false;
             }
 
-            string projectPath = Directory.GetParent(Application.dataPath).FullName; // 프로젝트 최상위 경로
+            string projectPath = Directory.GetParent(Application.dataPath).FullName;
 
-            deckSavePath = Path.Combine(projectPath,"Decks",userID + ".json");
+            deckSavePath = Path.Combine(projectPath, "Decks", userID + ".json");
 
-            return LoadDecks(userID); // 저장된 덱 불러오기
+            return LoadDecks(userID);
         }
 
-        // 덱 데이터 불러오기
+        #endregion
+
+        #region 덱 저장 데이터 입출력
+
+        // 사용자 ID에 해당하는 저장 파일을 읽어 덱 목록에 등록
         private bool LoadDecks(string userID)
         {
             if (!File.Exists(deckSavePath))
@@ -122,7 +141,7 @@ namespace Manager
             }
         }
 
-        // 덱 데이터 저장
+        // 현재 덱 목록을 사용자 저장 파일에 기록
         public bool SaveDecks()
         {
             if (!EnsureLoaded())
@@ -130,8 +149,8 @@ namespace Manager
                 return false;
             }
 
-            string userID = UserManager.Instance.CurrentUserData.LocalUserID; // 현재 사용자 UID
-            DeckSaveData saveData = new DeckSaveData(userID); // 저장 데이터 생성
+            string userID = UserManager.Instance.CurrentUserData.LocalUserID;
+            DeckSaveData saveData = new DeckSaveData(userID);
 
             foreach (DeckData deckData in decks)
             {
@@ -160,7 +179,11 @@ namespace Manager
             }
         }
 
-        // 새로운 덱 생성
+        #endregion
+
+        #region 덱 요청 전달
+
+        // 덱 생성 요청을 데이터 객체에 전달하고 목록에 등록
         public DeckData CreateDeck(string deckName)
         {
             if (!EnsureLoaded())
@@ -173,15 +196,15 @@ namespace Manager
                 return null;
             }
 
-            string deckId = System.Guid.NewGuid().ToString("N"); // 덱 고유 ID 생성
-            DeckData deckData = new DeckData(deckId, deckName); // 덱 데이터 생성
+            string deckId = System.Guid.NewGuid().ToString("N");
+            DeckData deckData = new DeckData(deckId, deckName);
 
-            decks.Add(deckData); // 덱 목록에 추가
+            decks.Add(deckData);
 
             return deckData;
         }
 
-        // 덱 삭제
+        // 지정한 덱 삭제 요청을 처리
         public bool RemoveDeck(string deckId)
         {
             if (!EnsureLoaded())
@@ -193,7 +216,7 @@ namespace Manager
             {
                 if (decks[i].DeckID == deckId)
                 {
-                    decks.RemoveAt(i); // 해당 덱 제거
+                    decks.RemoveAt(i);
                     return true;
                 }
             }
@@ -201,7 +224,7 @@ namespace Manager
             return false;
         }
 
-        // 덱 이름 변경
+        // 지정한 덱 이름 변경 요청을 데이터 객체에 전달
         public bool RenameDeck(string deckId, string newName)
         {
             if (!EnsureLoaded())
@@ -214,19 +237,19 @@ namespace Manager
                 return false;
             }
 
-            DeckData deckData = GetDeck(deckId); // 대상 덱 조회
+            DeckData deckData = GetDeck(deckId);
 
             if (deckData == null)
             {
                 return false;
             }
 
-            deckData.Rename(newName); // 덱 이름 변경
+            deckData.Rename(newName);
 
             return true;
         }
 
-        // 덱 ID로 덱 조회
+        // 덱 ID에 해당하는 덱 참조 반환
         public DeckData GetDeck(string deckId)
         {
             if (!EnsureLoaded())
@@ -245,7 +268,7 @@ namespace Manager
             return null;
         }
 
-        // 덱에 카드 추가
+        // 카드 추가 요청을 대상 덱 데이터에 전달
         public bool AddCard(string deckId, string cardId)
         {
             if (!EnsureLoaded())
@@ -253,17 +276,17 @@ namespace Manager
                 return false;
             }
 
-            DeckData deckData = GetDeck(deckId); // 대상 덱 조회
+            DeckData deckData = GetDeck(deckId);
 
             if (deckData == null)
             {
                 return false;
             }
 
-            return deckData.AddCard(cardId); // 카드 추가 요청
+            return deckData.AddCard(cardId);
         }
 
-        // 덱에서 카드 제거
+        // 카드 제거 요청을 대상 덱 데이터에 전달
         public bool RemoveCard(string deckId, string cardId)
         {
             if (!EnsureLoaded())
@@ -271,14 +294,16 @@ namespace Manager
                 return false;
             }
 
-            DeckData deckData = GetDeck(deckId); // 대상 덱 조회
+            DeckData deckData = GetDeck(deckId);
 
             if (deckData == null)
             {
                 return false;
             }
 
-            return deckData.RemoveCard(cardId); // 카드 제거 요청
+            return deckData.RemoveCard(cardId);
         }
+
+        #endregion
     }
 }

@@ -9,6 +9,8 @@ namespace Manager
     // 게임 화면의 UI 연결 및 갱신 관리
     public class UIManager : BaseManager
     {
+        #region 싱글톤 및 UI 참조
+
         public static UIManager Instance { get; private set; }
 
         [Header("멀리건 UI")]
@@ -38,6 +40,10 @@ namespace Manager
 
         private bool isProcessing = false; // 버튼 중복 입력 방지
         private Coroutine _refreshCoroutine; // UI 갱신 코루틴
+
+        #endregion
+
+        #region 생명 주기 및 이벤트 연결
 
         // 싱글톤 등록 및 기본 초기화
         protected override void Awake()
@@ -137,6 +143,10 @@ namespace Manager
             }
         }
 
+        #endregion
+
+        #region 버튼 및 카드 영역 이벤트 조율
+
         // 턴 종료 버튼 처리
         private void HandleEndTurnButtonClicked()
         {
@@ -231,6 +241,10 @@ namespace Manager
 
             Debug.LogError("UIManager: 최초 손패 준비를 확인하지 못했습니다.");
         }
+
+        #endregion
+
+        #region UI 표시 갱신
 
         // 멀리건 손패 표시
         public void RefreshMulliganHand()
@@ -370,6 +384,10 @@ namespace Manager
             slots[slotIndex].ShowCard(card);
         }
 
+        #endregion
+
+        #region 최초 손패 선택 UI
+
         // 멀리건 패널 표시
         public void ShowMulliganPanel()
         {
@@ -456,5 +474,7 @@ namespace Manager
                 mulliganButton.interactable = interactable;
             }
         }
+
+        #endregion
     }
 }

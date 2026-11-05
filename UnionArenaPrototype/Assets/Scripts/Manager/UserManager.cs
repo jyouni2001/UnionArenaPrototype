@@ -6,17 +6,23 @@ using Data;
 
 namespace Manager
 {
-    // 로컬 사용자 정보 관리
+    // 로컬 사용자 데이터의 저장 경로와 로드·저장 시점을 조율
     public class UserManager : BaseManager
     {
-        public static UserManager Instance { get; private set; } // 싱글톤 인스턴스
+        #region 싱글톤 및 사용자 데이터
 
-        public UserData CurrentUserData => currentUserData; // 현재 사용자 정보 조회
+        public static UserManager Instance { get; private set; }
 
-        private UserData currentUserData; // 현재 사용자 데이터
-        private string userDataPath; // 사용자 JSON 파일 경로
+        public UserData CurrentUserData => currentUserData;
 
-        // 초기화 처리
+        private UserData currentUserData;
+        private string userDataPath;
+
+        #endregion
+
+        #region 생명 주기 및 사용자 데이터 준비
+
+        // 싱글톤을 등록하고 사용자 데이터를 준비
         protected override void Initialize()
         {
             if (Instance != null && Instance != this)
@@ -25,22 +31,33 @@ namespace Manager
                 return;
             }
 
-            Instance = this; // 싱글톤 등록
+            Instance = this;
 
-            userDataPath = Path.Combine(Application.persistentDataPath, "UserData.json"); // 저장 경로 설정
+            userDataPath = Path.Combine(
+                Application.persistentDataPath,
+                "UserData.json");
 
-            LoadUserData(); // 사용자 정보 불러오기
+            LoadUserData();
 
-            base.Initialize(); // 초기화 완료 처리
+            base.Initialize();
         }
 
-        // 사용자 정보 불러오기
+        // 매니저가 제거될 때 싱글톤 참조 해제
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        // 저장 파일에서 사용자 정보를 읽고 없으면 새로 생성
         private void LoadUserData()
         {
             if (File.Exists(userDataPath))
             {
-                string json = File.ReadAllText(userDataPath); // JSON 파일 읽기
-                currentUserData = JsonUtility.FromJson<UserData>(json); // 사용자 데이터 변환
+                string json = File.ReadAllText(userDataPath);
+                currentUserData = JsonUtility.FromJson<UserData>(json);
 
                 if (currentUserData != null && !string.IsNullOrWhiteSpace(currentUserData.LocalUserID))
                 {
@@ -48,27 +65,31 @@ namespace Manager
                 }
             }
 
-            CreateUserData(); // 사용자 정보가 없으면 새로 생성
+            CreateUserData();
         }
 
-        // 새로운 사용자 정보 생성
+        #endregion
+
+        #region 사용자 데이터 변경 및 저장
+
+        // 로컬 사용자 ID와 기본 표시 이름을 생성해 저장
         private void CreateUserData()
         {
-            string localUserID = Guid.NewGuid().ToString("N"); // 새로운 UUID 생성
+            string localUserID = Guid.NewGuid().ToString("N");
 
-            currentUserData = new UserData(localUserID, "Player"); // 사용자 데이터 생성
+            currentUserData = new UserData(localUserID, "Player");
 
-            SaveUserData(); // 사용자 정보 저장
+            SaveUserData();
         }
 
-        // 사용자 정보 저장
+        // 현재 사용자 데이터를 JSON 파일에 기록
         private void SaveUserData()
         {
-            string json = JsonUtility.ToJson(currentUserData, true); // JSON 변환
-            File.WriteAllText(userDataPath, json); // 파일 저장
+            string json = JsonUtility.ToJson(currentUserData, true);
+            File.WriteAllText(userDataPath, json);
         }
 
-        // 사용자 표시 이름 변경
+        // 표시 이름 변경 요청을 데이터 객체에 전달하고 저장
         public void ChangeDisplayName(string newDisplayName)
         {
             if (currentUserData == null || string.IsNullOrWhiteSpace(newDisplayName))
@@ -76,8 +97,10 @@ namespace Manager
                 return;
             }
 
-            currentUserData.ChangeDisplayName(newDisplayName); // 표시 이름 변경
-            SaveUserData(); // 변경 정보 저장
+            currentUserData.ChangeDisplayName(newDisplayName);
+            SaveUserData();
         }
+
+        #endregion
     }
 }
