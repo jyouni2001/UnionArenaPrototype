@@ -1,8 +1,6 @@
-﻿using UnityEngine;
-
-namespace Enums
+﻿namespace Enums
 {
-    // 전투에서 사용하는 카드 영역, 필드 위치, 플레이어와 결과 구분
+    // 전투에서 사용하는 카드 영역, 필드 위치, 플레이어, 결과와 턴 페이즈 구분
     public class BattleEnums
     {
         #region 카드 영역
@@ -55,6 +53,22 @@ namespace Enums
             UnblockedAttack,    // 블록 없이 공격 통과
             AttackerWins,       // 공격자가 이겨 방어 카드 퇴장
             AttackFails         // 방어자가 공격을 막음
+        }
+
+        #endregion
+
+        #region 턴 페이즈
+
+        // 한 플레이어의 턴이 진행되는 순서
+        public enum TurnPhase
+        {
+            None,       // 진행 중인 페이즈 없음
+            Start,      // AP 활성화, 필드 활성화와 드로우
+            ExtraDraw,  // AP 1을 사용한 추가 드로우 선택
+            Move,       // 에너지 존 카드를 프론트라인으로 이동
+            Main,       // 카드 등장과 효과 처리
+            Battle,     // 프론트라인 카드 공격
+            End         // 턴 종료 처리와 상대에게 턴 전달
         }
 
         #endregion

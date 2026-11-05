@@ -25,8 +25,10 @@ namespace Manager
         private PlayerGameData currentTurnPlayer; // 현재 턴 플레이어 데이터
         private PlayerGameData winnerPlayerData; // 승리한 플레이어 데이터
         private BattleEnums.PlayerType localPlayerType; // 로컬 플레이어 타입
+        private BattleEnums.TurnPhase currentTurnPhase = BattleEnums.TurnPhase.None; // 현재 턴 페이즈
         private bool isWaitingForInitialHandChoice; // 최초 손패 선택 대기 여부
         private bool isRunningOpponentTurn; // 상대 AI 턴 진행 여부
+        private bool isEndPhaseProcessed; // 엔드 페이즈 처리 여부
         private bool isGameOver; // 게임 종료 여부
 
         private BattleSetupService battleSetupService; // 덱과 최초 손패 준비 서비스
@@ -41,6 +43,8 @@ namespace Manager
         public PlayerGameData CurrentTurnPlayer => currentTurnPlayer; // 현재 턴 플레이어 데이터
         public PlayerGameData WinnerPlayerData => winnerPlayerData; // 승리한 플레이어 데이터
         public BattleEnums.PlayerType LocalPlayerType => localPlayerType; // 로컬 플레이어 타입
+        public BattleEnums.TurnPhase CurrentTurnPhase => currentTurnPhase; // 현재 턴 페이즈
+        public bool CanTakeExtraDraw => !isGameOver && currentTurnPlayer == localPlayerData && currentTurnPhase == BattleEnums.TurnPhase.ExtraDraw && localPlayerData != null && !localPlayerData.hasTakenExtraDrawThisTurn && localPlayerData.activeAP >= 1 && localPlayerData.deck != null && localPlayerData.deck.Count > 0; // 엑스트라 드로우 가능 여부
         public bool IsWaitingForInitialHandChoice => isWaitingForInitialHandChoice; // 최초 손패 선택 대기 여부
         public bool IsWaitingForBlock => battleCombatService != null && battleCombatService.IsWaitingForBlock; // 블록 대기 여부
         public bool IsRunningOpponentTurn => isRunningOpponentTurn; // 상대 AI 턴 진행 여부
@@ -49,6 +53,7 @@ namespace Manager
         public event Action<PlayerGameData> OnCombatFieldChanged; // 전투 카드 상태 변경 알림
         public event Action<CardRuntimeData> OnBlockChoiceRequested; // 블록 선택 UI 요청
         public event Action<PlayerGameData, PlayerGameData> OnGameEnded; // 승패 확정 알림
+        public event Action<BattleEnums.TurnPhase> OnTurnPhaseChanged; // 턴 페이즈 변경 알림
 
         #endregion
 
@@ -95,8 +100,10 @@ namespace Manager
             opponentPlayerData = null;
             currentTurnPlayer = null;
             winnerPlayerData = null;
+            currentTurnPhase = BattleEnums.TurnPhase.None;
             isWaitingForInitialHandChoice = false;
             isRunningOpponentTurn = false;
+            isEndPhaseProcessed = false;
             isGameOver = false;
             battleSetupService = null;
             turnFlowService = null;
@@ -560,7 +567,7 @@ namespace Manager
             return BeginTurn(localPlayerData);
         }
 
-        // 턴 서비스를 호출하고 현재 턴 플레이어를 갱신
+        // 턴 서비스를 호출하고 현재 턴 플레이어와 시작 페이즈를 갱신
         private bool BeginTurn(PlayerGameData playerData)
         {
             if (isGameOver || playerData == null || !EnsureServicesReady())
@@ -575,35 +582,132 @@ namespace Manager
             }
 
             currentTurnPlayer = playerData;
+            isEndPhaseProcessed = false;
+            SetTurnPhase(BattleEnums.TurnPhase.Start);
+
             Debug.Log($"BattleManager: 턴 시작. 플레이어 인덱스 = {playerData.playerIndex}, 턴 = {playerData.turnCount}, 활성 AP = {playerData.activeAP}");
             return true;
         }
 
-        // 현재 플레이어 턴을 마치고 다음 플레이어에게 턴을 넘김
-        public bool EndCurrentTurn()
+        // 내 턴 엑스트라 드로우를 처리하고 이동 페이즈로 이동
+        public bool TryExtraDraw(out string errorMessage)
         {
-            if (isGameOver || currentTurnPlayer == null || isWaitingForInitialHandChoice ||
-                (isRunningOpponentTurn && currentTurnPlayer != opponentPlayerData))
+            errorMessage = string.Empty;
+
+            if (!CanTakeExtraDraw)
             {
-                Debug.LogWarning("BattleManager: 종료할 수 있는 턴이 없습니다.");
+                errorMessage = "엑스트라 드로우를 할 수 없습니다. AP, 덱, 페이즈 상태를 확인하세요.";
                 return false;
             }
 
-            if (IsWaitingForBlock)
+            if (!localPlayerData.TrySpendAP(1))
             {
-                Debug.LogWarning("BattleManager: 진행 중인 공격 처리를 먼저 끝내야 합니다.");
+                errorMessage = "엑스트라 드로우에 필요한 AP가 부족합니다.";
                 return false;
+            }
+
+            if (CardZoneManager.Instance == null || !CardZoneManager.Instance.DrawOneCard(localPlayerData))
+            {
+                localPlayerData.activeAP += 1;
+                errorMessage = "카드를 뽑지 못해 AP를 돌려받았습니다.";
+                return false;
+            }
+
+            localPlayerData.hasTakenExtraDrawThisTurn = true;
+            SetTurnPhase(BattleEnums.TurnPhase.Move);
+            Debug.Log($"BattleManager: 엑스트라 드로우 완료. 남은 AP = {localPlayerData.activeAP}");
+            return true;
+        }
+
+        // 엑스트라 드로우를 건너뛰고 이동 페이즈로 이동
+        public bool PassExtraDraw()
+        {
+            if (isGameOver || currentTurnPlayer != localPlayerData || currentTurnPhase != BattleEnums.TurnPhase.ExtraDraw || localPlayerData == null)
+            {
+                return false;
+            }
+
+            localPlayerData.hasTakenExtraDrawThisTurn = true;
+            SetTurnPhase(BattleEnums.TurnPhase.Move);
+            Debug.Log("BattleManager: 엑스트라 드로우를 건너뛰고 이동 페이즈로 이동합니다.");
+            return true;
+        }
+
+        // 내 턴의 다음 페이즈로 이동
+        public bool AdvanceTurnPhase()
+        {
+            if (isGameOver || currentTurnPlayer != localPlayerData || isWaitingForInitialHandChoice || IsWaitingForBlock)
+            {
+                return false;
+            }
+
+            switch (currentTurnPhase)
+            {
+                case BattleEnums.TurnPhase.Start:
+                    SetTurnPhase(BattleEnums.TurnPhase.ExtraDraw);
+                    return true;
+
+                case BattleEnums.TurnPhase.ExtraDraw:
+                    SetTurnPhase(BattleEnums.TurnPhase.Move);
+                    return true;
+
+                case BattleEnums.TurnPhase.Move:
+                    SetTurnPhase(BattleEnums.TurnPhase.Main);
+                    return true;
+
+                case BattleEnums.TurnPhase.Main:
+                    SetTurnPhase(BattleEnums.TurnPhase.Battle);
+                    return true;
+
+                case BattleEnums.TurnPhase.Battle:
+                    return ProcessEndPhase();
+
+                case BattleEnums.TurnPhase.End:
+                    return StartNextPlayerTurn();
+
+                default:
+                    return false;
+            }
+        }
+
+        // 페이즈 값을 갱신하고 UI에 변경을 알림
+        private void SetTurnPhase(BattleEnums.TurnPhase phase)
+        {
+            currentTurnPhase = phase;
+            OnTurnPhaseChanged?.Invoke(currentTurnPhase);
+        }
+
+        // 엔드 페이즈 필드 활성화를 처리하고 End 페이즈로 전환
+        private bool ProcessEndPhase()
+        {
+            if (isEndPhaseProcessed)
+            {
+                SetTurnPhase(BattleEnums.TurnPhase.End);
+                return true;
             }
 
             if (!EnsureServicesReady())
             {
-                Debug.LogError("BattleManager: 턴 종료에 필요한 서비스가 준비되지 않았습니다.");
+                Debug.LogError("BattleManager: 엔드 페이즈 서비스가 준비되지 않았습니다.");
                 return false;
             }
 
             if (!turnFlowService.EndTurn(currentTurnPlayer, out string errorMessage))
             {
-                Debug.LogError("BattleManager: 턴 종료 처리에 실패했습니다. " + errorMessage);
+                Debug.LogError("BattleManager: 엔드 페이즈 처리에 실패했습니다. " + errorMessage);
+                return false;
+            }
+
+            isEndPhaseProcessed = true;
+            SetTurnPhase(BattleEnums.TurnPhase.End);
+            return true;
+        }
+
+        // 현재 플레이어의 턴을 마치고 다음 플레이어 시작 페이즈로 이동
+        private bool StartNextPlayerTurn()
+        {
+            if (currentTurnPhase != BattleEnums.TurnPhase.End || !isEndPhaseProcessed)
+            {
                 return false;
             }
 
@@ -620,6 +724,23 @@ namespace Manager
             }
 
             return true;
+        }
+
+        // 상대 AI가 현재 턴을 종료하고 다음 플레이어 턴으로 넘김
+        public bool EndCurrentTurn()
+        {
+            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock)
+            {
+                Debug.LogWarning("BattleManager: 종료할 수 있는 상대 턴이 없습니다.");
+                return false;
+            }
+
+            if (!ProcessEndPhase())
+            {
+                return false;
+            }
+
+            return StartNextPlayerTurn();
         }
 
         // 상대 AI 행동을 순서대로 실행
@@ -640,3 +761,4 @@ namespace Manager
         #endregion
     }
 }
+

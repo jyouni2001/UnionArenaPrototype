@@ -50,6 +50,14 @@ namespace Manager
         [Header("블록 선택 UI")]
         [SerializeField] private UI.BlockChoiceView blockChoiceView; // 블록 카드 선택 패널
 
+        [Header("엑스트라 드로우 UI")]
+        [SerializeField] private GameObject extraDrawPanel; // 엑스트라 드로우 선택 패널
+        [SerializeField] private Button extraDrawButton; // 엑스트라 드로우 실행 버튼
+        [SerializeField] private Button passExtraDrawButton; // 엑스트라 드로우 패스 버튼
+
+        [Header("현재 페이즈 UI")]
+        [SerializeField] private Text turnPhaseText; // 현재 턴 페이즈 Text
+
         [Header("게임 종료 UI")]
         [SerializeField] private GameObject gameOverPanel; // 게임 종료 패널
         [SerializeField] private Text gameOverText; // 승패 결과 텍스트
@@ -58,8 +66,8 @@ namespace Manager
         [SerializeField] private Button keepButton; // 손패 유지 버튼
         [SerializeField] private Button mulliganButton; // 멀리건 버튼
 
-        [Header("턴 버튼")]
-        [SerializeField] private Button endTurnButton; // 턴 종료 버튼
+        [Header("페이즈 진행 버튼")]
+        [SerializeField] private Button endTurnButton; // 다음 페이즈 진행 버튼
 
         private bool isProcessing; // 버튼 입력 중복 처리 방지
         private Coroutine playerRefreshCoroutine; // 내 UI 갱신 코루틴
@@ -107,6 +115,21 @@ namespace Manager
                 endTurnButton.onClick.AddListener(HandleEndTurnButtonClicked);
             }
 
+            if (extraDrawButton != null)
+            {
+                extraDrawButton.onClick.AddListener(HandleExtraDrawButtonClicked);
+            }
+
+            if (passExtraDrawButton != null)
+            {
+                passExtraDrawButton.onClick.AddListener(HandlePassExtraDrawButtonClicked);
+            }
+
+            if (extraDrawPanel != null)
+            {
+                extraDrawPanel.SetActive(false);
+            }
+
             if (gameOverPanel != null)
             {
                 gameOverPanel.SetActive(false);
@@ -126,6 +149,8 @@ namespace Manager
                 BattleManager.Instance.OnBlockChoiceRequested += HandleBlockChoiceRequested;
                 BattleManager.Instance.OnCombatFieldChanged += HandleCombatFieldChanged;
                 BattleManager.Instance.OnGameEnded += HandleGameEnded;
+                BattleManager.Instance.OnTurnPhaseChanged += HandleTurnPhaseChanged;
+                HandleTurnPhaseChanged(BattleManager.Instance.CurrentTurnPhase);
             }
 
             StartCoroutine(WaitForInitialHand());
@@ -161,6 +186,16 @@ namespace Manager
                 endTurnButton.onClick.RemoveListener(HandleEndTurnButtonClicked);
             }
 
+            if (extraDrawButton != null)
+            {
+                extraDrawButton.onClick.RemoveListener(HandleExtraDrawButtonClicked);
+            }
+
+            if (passExtraDrawButton != null)
+            {
+                passExtraDrawButton.onClick.RemoveListener(HandlePassExtraDrawButtonClicked);
+            }
+
             if (CardZoneManager.Instance != null)
             {
                 CardZoneManager.Instance.OnZoneChanged -= HandleZoneChanged;
@@ -171,6 +206,7 @@ namespace Manager
                 BattleManager.Instance.OnBlockChoiceRequested -= HandleBlockChoiceRequested;
                 BattleManager.Instance.OnCombatFieldChanged -= HandleCombatFieldChanged;
                 BattleManager.Instance.OnGameEnded -= HandleGameEnded;
+                BattleManager.Instance.OnTurnPhaseChanged -= HandleTurnPhaseChanged;
             }
 
             if (Instance == this)
@@ -183,7 +219,7 @@ namespace Manager
 
         #region 버튼 및 게임 이벤트 처리
 
-        // 턴 종료 요청을 BattleManager에 전달
+        // 턴 진행 요청을 BattleManager에 전달
         private void HandleEndTurnButtonClicked()
         {
             if (BattleManager.Instance == null)
@@ -192,9 +228,9 @@ namespace Manager
                 return;
             }
 
-            if (!BattleManager.Instance.EndCurrentTurn())
+            if (!BattleManager.Instance.AdvanceTurnPhase())
             {
-                Debug.LogWarning("UIManager: 턴을 넘기지 못했습니다.");
+                Debug.LogWarning("UIManager: 다음 페이즈로 이동하지 못했습니다.");
                 return;
             }
 
@@ -204,6 +240,106 @@ namespace Manager
             RefreshOpponentField();
             RefreshSecurityViews();
             RefreshAllZoneCounts();
+        }
+
+        // 엑스트라 드로우 요청을 BattleManager에 전달
+        private void HandleExtraDrawButtonClicked()
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            if (!BattleManager.Instance.TryExtraDraw(out string errorMessage))
+            {
+                Debug.LogWarning("UIManager: 엑스트라 드로우 실패. " + errorMessage);
+                return;
+            }
+
+            RefreshPlayerHand();
+            RefreshPlayerField();
+            RefreshAllZoneCounts();
+        }
+
+        // 엑스트라 드로우 패스 요청을 BattleManager에 전달
+        private void HandlePassExtraDrawButtonClicked()
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            if (!BattleManager.Instance.PassExtraDraw())
+            {
+                Debug.LogWarning("UIManager: 엑스트라 드로우 페이즈를 패스하지 못했습니다.");
+            }
+        }
+
+        // 현재 플레이어와 페이즈를 화면에 표시
+        private void HandleTurnPhaseChanged(BattleEnums.TurnPhase phase)
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            string playerName = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData
+                ? "내 턴"
+                : "상대 턴";
+
+            string phaseName;
+
+            switch (phase)
+            {
+                case BattleEnums.TurnPhase.Start:
+                    phaseName = "시작 페이즈";
+                    break;
+                case BattleEnums.TurnPhase.ExtraDraw:
+                    phaseName = "엑스트라 드로우 페이즈";
+                    break;
+                case BattleEnums.TurnPhase.Move:
+                    phaseName = "이동 페이즈";
+                    break;
+                case BattleEnums.TurnPhase.Main:
+                    phaseName = "메인 페이즈";
+                    break;
+                case BattleEnums.TurnPhase.Battle:
+                    phaseName = "배틀 페이즈";
+                    break;
+                case BattleEnums.TurnPhase.End:
+                    phaseName = "엔드 페이즈";
+                    break;
+                default:
+                    phaseName = "대기 중";
+                    break;
+            }
+
+            if (turnPhaseText != null)
+            {
+                turnPhaseText.text = $"{playerName} - {phaseName}";
+            }
+
+            bool isLocalExtraDrawPhase = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData && phase == BattleEnums.TurnPhase.ExtraDraw;
+
+            if (extraDrawPanel != null)
+            {
+                extraDrawPanel.SetActive(isLocalExtraDrawPhase);
+            }
+
+            if (extraDrawButton != null)
+            {
+                extraDrawButton.interactable = isLocalExtraDrawPhase && BattleManager.Instance.CanTakeExtraDraw;
+            }
+
+            if (passExtraDrawButton != null)
+            {
+                passExtraDrawButton.interactable = isLocalExtraDrawPhase;
+            }
+
+            if (endTurnButton != null)
+            {
+                endTurnButton.interactable = !isLocalExtraDrawPhase && !BattleManager.Instance.IsGameOver;
+            }
         }
 
         // 카드 영역 변경에 따라 필요한 UI를 갱신
@@ -645,7 +781,7 @@ namespace Manager
             }
         }
 
-        // 지정 슬롯에 필드 카드를 표시
+        // 지정한 슬롯에 필드 카드를 표시
         private void ShowFieldCard(UI.FieldSlotView[] slots, int slotIndex, CardRuntimeData card)
         {
             if (slots == null)
@@ -767,3 +903,5 @@ namespace Manager
         #endregion
     }
 }
+
+
