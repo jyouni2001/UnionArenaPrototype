@@ -86,7 +86,6 @@ namespace UI
                 bool hasCard = i < handCards.Count; // 해당 순번의 카드 존재 여부
 
                 cardView.gameObject.SetActive(hasCard); // 카드 데이터에 따라 활성화
-
                 cardView.SetDragEvents(HandleBeginDrag, HandleDrag, HandleEndDrag); // 손패 드래그 이벤트 연결
 
                 if (!hasCard)
@@ -304,7 +303,6 @@ namespace UI
 
             _isDragging = true; // 드래그 시작
             _wasDroppedOnField = false; // 필드 드롭 상태 초기화
-
             _activeDraggingHandView = this; // 현재 드래그 UI 등록
 
             UpdateDraggingCardPosition(eventData); // 드래그 시작 위치 반영
@@ -372,6 +370,15 @@ namespace UI
                 if (BattleManager.Instance.CurrentTurnPlayer != playerData)
                 {
                     Debug.LogWarning("HandView: 현재 내 턴이 아닙니다.");
+                    return false;
+                }
+
+                if (!EnergyRuleService.HasEnoughEnergy(
+                    playerData,
+                    card.cardData,
+                    out string energyError))
+                {
+                    Debug.LogWarning($"HandView: {energyError}");
                     return false;
                 }
 
