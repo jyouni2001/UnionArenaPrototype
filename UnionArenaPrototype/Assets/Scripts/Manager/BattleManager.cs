@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace Manager
 
         private readonly List<PlayerGameData> playerGameDataList = new List<PlayerGameData>(); // 플레이어별 전투 데이터
 
-        private PlayerGameData localPlayerData; // 내 플레이어 데이터
+        private PlayerGameData localPlayerData; // 로컬 플레이어 데이터
         private PlayerGameData opponentPlayerData; // 상대 플레이어 데이터
         private PlayerGameData currentTurnPlayer; // 현재 턴 플레이어 데이터
         private PlayerGameData winnerPlayerData; // 승리한 플레이어 데이터
@@ -597,9 +598,82 @@ namespace Manager
             isEndPhaseProcessed = false;
             isEndFieldActivationProcessed = false;
             isWaitingForHandLimitSelection = false;
+
             SetTurnPhase(BattleEnums.TurnPhase.Start);
+            SetTurnPhase(BattleEnums.TurnPhase.ExtraDraw);
 
             Debug.Log($"BattleManager: 턴 시작. 플레이어 인덱스 = {playerData.playerIndex}, 턴 = {playerData.turnCount}, 활성 AP = {playerData.activeAP}");
+            return true;
+        }
+
+        // 에너지라인에 카드가 있는지 확인
+        private bool HasEnergyLineCard(PlayerGameData playerData)
+        {
+            if (playerData == null || playerData.field == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < playerData.field.Count; i++)
+            {
+                CardRuntimeData card = playerData.field[i];
+
+                if (card != null &&
+                    card.currentZone == BattleEnums.CardZone.Field &&
+                    card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // 프론트라인에 카드가 있는지 확인
+        private bool HasFrontLineCard(PlayerGameData playerData)
+        {
+            if (playerData == null || playerData.field == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < playerData.field.Count; i++)
+            {
+                CardRuntimeData card = playerData.field[i];
+
+                if (card != null &&
+                    card.currentZone == BattleEnums.CardZone.Field &&
+                    card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // 이동 페이즈로 진입하고 에너지라인이 비어 있으면 메인으로 자동 진행
+        private void EnterMovePhase()
+        {
+            SetTurnPhase(BattleEnums.TurnPhase.Move);
+
+            if (!HasEnergyLineCard(currentTurnPlayer))
+            {
+                Debug.Log("BattleManager: 에너지라인에 카드가 없어 이동 페이즈를 건너뜁니다.");
+                SetTurnPhase(BattleEnums.TurnPhase.Main);
+            }
+        }
+
+        // 메인 페이즈에서 프론트라인이 비어 있으면 배틀을 건너뛰고 엔드 처리
+        private bool EnterBattlePhase()
+        {
+            if (!HasFrontLineCard(currentTurnPlayer))
+            {
+                Debug.Log("BattleManager: 프론트라인에 카드가 없어 배틀 페이즈를 건너뜁니다.");
+                return ProcessEndPhase();
+            }
+
+            SetTurnPhase(BattleEnums.TurnPhase.Battle);
             return true;
         }
 
@@ -628,7 +702,8 @@ namespace Manager
             }
 
             localPlayerData.hasTakenExtraDrawThisTurn = true;
-            SetTurnPhase(BattleEnums.TurnPhase.Move);
+            EnterMovePhase();
+
             Debug.Log($"BattleManager: 엑스트라 드로우 완료. 남은 AP = {localPlayerData.activeAP}");
             return true;
         }
@@ -656,7 +731,9 @@ namespace Manager
                 return false;
             }
 
-            if (card == null || card.cardData == null || card.currentZone != BattleEnums.CardZone.Field || card.fieldPosition != BattleEnums.FieldPosition.EnergyLine || playerData.field == null || !playerData.field.Contains(card) || card.ownerPlayerIndex != playerData.playerIndex)
+            if (card == null || card.cardData == null || card.currentZone != BattleEnums.CardZone.Field ||
+                card.fieldPosition != BattleEnums.FieldPosition.EnergyLine || playerData.field == null ||
+                !playerData.field.Contains(card) || card.ownerPlayerIndex != playerData.playerIndex)
             {
                 errorMessage = "내 에너지라인에 있는 카드만 이동할 수 있습니다.";
                 return false;
@@ -674,7 +751,8 @@ namespace Manager
                 return false;
             }
 
-            if (!CardZoneManager.Instance.MoveCard(playerData, card, BattleEnums.CardZone.Field, BattleEnums.FieldPosition.FrontLine, targetSlotIndex))
+            if (!CardZoneManager.Instance.MoveCard(playerData, card, BattleEnums.CardZone.Field,
+                    BattleEnums.FieldPosition.FrontLine, targetSlotIndex))
             {
                 errorMessage = "프론트라인 슬롯이 이미 사용 중이거나 이동에 실패했습니다.";
                 return false;
@@ -687,23 +765,27 @@ namespace Manager
         // 엑스트라 드로우를 건너뛰고 이동 페이즈로 이동
         public bool PassExtraDraw()
         {
-            if (isGameOver || currentTurnPlayer != localPlayerData || currentTurnPhase != BattleEnums.TurnPhase.ExtraDraw || localPlayerData == null)
+            if (isGameOver || currentTurnPlayer != localPlayerData ||
+                currentTurnPhase != BattleEnums.TurnPhase.ExtraDraw || localPlayerData == null)
             {
                 return false;
             }
 
             localPlayerData.hasTakenExtraDrawThisTurn = true;
-            SetTurnPhase(BattleEnums.TurnPhase.Move);
+            EnterMovePhase();
+
             Debug.Log("BattleManager: 엑스트라 드로우를 건너뛰고 이동 페이즈로 이동합니다.");
             return true;
         }
 
-        // 내가 선택한 손패 카드를 제외존으로 보내고 엔드 페이즈를 마침
+        // 내가 선택한 손패 카드를 제외존으로 보내고 다음 플레이어 턴 시작
         public bool TryCompleteLocalHandLimitSelection(IReadOnlyList<CardRuntimeData> selectedCards, out string errorMessage)
         {
             errorMessage = string.Empty;
 
-            if (isGameOver || !isWaitingForHandLimitSelection || currentTurnPlayer != localPlayerData || localPlayerData == null || localPlayerData.hand == null || turnFlowService == null)
+            if (isGameOver || !isWaitingForHandLimitSelection ||
+                currentTurnPlayer != localPlayerData || localPlayerData == null ||
+                localPlayerData.hand == null || turnFlowService == null)
             {
                 errorMessage = "손패 제외 선택을 기다리는 상태가 아닙니다.";
                 return false;
@@ -725,14 +807,17 @@ namespace Manager
             isWaitingForHandLimitSelection = false;
             isEndPhaseProcessed = true;
             SetTurnPhase(BattleEnums.TurnPhase.End);
+
             Debug.Log($"BattleManager: 손패 제한 처리 완료. 현재 손패 = {localPlayerData.hand.Count}");
-            return true;
+
+            return StartNextPlayerTurn();
         }
 
         // 내 턴의 다음 페이즈로 이동
         public bool AdvanceTurnPhase()
         {
-            if (isGameOver || currentTurnPlayer != localPlayerData || isWaitingForInitialHandChoice || IsWaitingForBlock || isWaitingForHandLimitSelection)
+            if (isGameOver || currentTurnPlayer != localPlayerData ||
+                isWaitingForInitialHandChoice || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 return false;
             }
@@ -744,7 +829,7 @@ namespace Manager
                     return true;
 
                 case BattleEnums.TurnPhase.ExtraDraw:
-                    SetTurnPhase(BattleEnums.TurnPhase.Move);
+                    EnterMovePhase();
                     return true;
 
                 case BattleEnums.TurnPhase.Move:
@@ -752,8 +837,7 @@ namespace Manager
                     return true;
 
                 case BattleEnums.TurnPhase.Main:
-                    SetTurnPhase(BattleEnums.TurnPhase.Battle);
-                    return true;
+                    return EnterBattlePhase();
 
                 case BattleEnums.TurnPhase.Battle:
                     return ProcessEndPhase();
@@ -769,7 +853,8 @@ namespace Manager
         // 상대 AI 턴을 현재 페이즈 순서에 맞춰 진행
         public bool AdvanceOpponentTurnPhase()
         {
-            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
+            if (isGameOver || currentTurnPlayer != opponentPlayerData ||
+                !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 return false;
             }
@@ -781,7 +866,7 @@ namespace Manager
                     return true;
 
                 case BattleEnums.TurnPhase.ExtraDraw:
-                    SetTurnPhase(BattleEnums.TurnPhase.Move);
+                    EnterMovePhase();
                     return true;
 
                 case BattleEnums.TurnPhase.Move:
@@ -789,8 +874,7 @@ namespace Manager
                     return true;
 
                 case BattleEnums.TurnPhase.Main:
-                    SetTurnPhase(BattleEnums.TurnPhase.Battle);
-                    return true;
+                    return EnterBattlePhase();
 
                 case BattleEnums.TurnPhase.Battle:
                     return ProcessEndPhase();
@@ -810,7 +894,7 @@ namespace Manager
             OnTurnPhaseChanged?.Invoke(currentTurnPhase);
         }
 
-        // 엔드 페이즈 필드 활성화를 처리하고 End 페이즈로 전환
+        // 엔드 페이즈 필드 활성화를 처리하고 다음 턴을 시작
         private bool ProcessEndPhase()
         {
             if (isWaitingForHandLimitSelection)
@@ -821,7 +905,7 @@ namespace Manager
             if (isEndPhaseProcessed)
             {
                 SetTurnPhase(BattleEnums.TurnPhase.End);
-                return true;
+                return StartNextPlayerTurn();
             }
 
             if (!EnsureServicesReady())
@@ -841,16 +925,21 @@ namespace Manager
                 isEndFieldActivationProcessed = true;
             }
 
-            if (currentTurnPlayer == localPlayerData && localPlayerData.hand != null && localPlayerData.hand.Count > 8)
+            // 내 손패가 8장을 초과하면 선택을 기다림
+            if (currentTurnPlayer == localPlayerData &&
+                localPlayerData.hand != null && localPlayerData.hand.Count > 8)
             {
                 isWaitingForHandLimitSelection = true;
                 int removeCount = localPlayerData.hand.Count - 8;
                 OnHandLimitSelectionRequested?.Invoke(new List<CardRuntimeData>(localPlayerData.hand), removeCount);
+
                 Debug.Log($"BattleManager: 손패 제한 선택 대기. 제외할 카드 = {removeCount}장");
                 return true;
             }
 
-            if (currentTurnPlayer == opponentPlayerData && opponentPlayerData.hand != null && opponentPlayerData.hand.Count > 8)
+            // AI 손패가 8장을 초과하면 기존 자동 제외 처리
+            if (currentTurnPlayer == opponentPlayerData &&
+                opponentPlayerData.hand != null && opponentPlayerData.hand.Count > 8)
             {
                 if (!turnFlowService.MoveExcessHandCardsToRemove(opponentPlayerData, out string errorMessage))
                 {
@@ -861,18 +950,23 @@ namespace Manager
 
             isEndPhaseProcessed = true;
             SetTurnPhase(BattleEnums.TurnPhase.End);
-            return true;
+
+            // 손패 선택이 필요 없으면 즉시 다음 플레이어 턴 시작
+            return StartNextPlayerTurn();
         }
 
         // 현재 플레이어의 턴을 마치고 다음 플레이어 시작 페이즈로 이동
         private bool StartNextPlayerTurn()
         {
-            if (currentTurnPhase != BattleEnums.TurnPhase.End || !isEndPhaseProcessed)
+            if (isGameOver || currentTurnPhase != BattleEnums.TurnPhase.End ||
+                !isEndPhaseProcessed || currentTurnPlayer == null)
             {
                 return false;
             }
 
-            PlayerGameData nextPlayer = currentTurnPlayer == localPlayerData ? opponentPlayerData : localPlayerData;
+            PlayerGameData nextPlayer = currentTurnPlayer == localPlayerData
+                ? opponentPlayerData
+                : localPlayerData;
 
             if (!BeginTurn(nextPlayer))
             {
@@ -881,27 +975,30 @@ namespace Manager
 
             if (nextPlayer == opponentPlayerData)
             {
+                if (opponentTurnCoroutine != null)
+                {
+                    StopCoroutine(opponentTurnCoroutine);
+                    opponentTurnCoroutine = null;
+                }
+
                 opponentTurnCoroutine = StartCoroutine(RunOpponentTurn());
             }
 
             return true;
         }
 
-        // 상대 AI가 현재 턴을 종료하고 다음 플레이어 턴으로 넘김
+        // 상대 AI 턴을 종료 처리
         public bool EndCurrentTurn()
         {
-            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
+            if (isGameOver || currentTurnPlayer != opponentPlayerData ||
+                !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 Debug.LogWarning("BattleManager: 종료할 수 있는 상대 턴이 없습니다.");
                 return false;
             }
 
-            if (!ProcessEndPhase())
-            {
-                return false;
-            }
-
-            return StartNextPlayerTurn();
+            // ProcessEndPhase 내부에서 다음 턴까지 자동으로 시작
+            return ProcessEndPhase();
         }
 
         // 상대 AI 행동을 순서대로 실행
@@ -915,6 +1012,7 @@ namespace Manager
 
             isRunningOpponentTurn = true;
             yield return battleAIService.RunTurn(opponentPlayerData, localPlayerData);
+
             isRunningOpponentTurn = false;
             opponentTurnCoroutine = null;
         }
@@ -922,6 +1020,3 @@ namespace Manager
         #endregion
     }
 }
-
-
-

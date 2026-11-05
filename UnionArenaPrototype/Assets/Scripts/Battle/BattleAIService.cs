@@ -39,45 +39,91 @@ namespace Battle
                 yield break;
             }
 
-            // 시작 페이즈에서 엑스트라 드로우와 이동 페이즈를 거쳐 메인 페이즈로 이동
+            // 시작 페이즈에서 엑스트라 드로우 페이즈로 자동 진입한 상태인지 확인
+            if (battleManager.CurrentTurnPlayer != opponent ||
+                battleManager.CurrentTurnPhase != BattleEnums.TurnPhase.ExtraDraw)
+            {
+                Debug.LogWarning("BattleAIService: 엑스트라 드로우 페이즈가 아닙니다.");
+                yield break;
+            }
+
+            // AI는 현재 엑스트라 드로우를 선택하지 않고 건너뜀
             if (!battleManager.AdvanceOpponentTurnPhase())
             {
-                Debug.LogWarning("BattleAIService: 시작 페이즈를 진행하지 못했습니다.");
+                Debug.LogWarning("BattleAIService: 이동 페이즈로 진행하지 못했습니다.");
                 yield break;
             }
 
             yield return new WaitForSeconds(ActionDelay);
 
-            if (!battleManager.AdvanceOpponentTurnPhase() || !battleManager.AdvanceOpponentTurnPhase())
+            // 에너지라인에 카드가 있으면 이동 페이즈를 거쳐 메인으로 진행
+            if (battleManager.CurrentTurnPlayer == opponent &&
+                battleManager.CurrentTurnPhase == BattleEnums.TurnPhase.Move)
             {
-                Debug.LogWarning("BattleAIService: 메인 페이즈로 이동하지 못했습니다.");
+                if (!battleManager.AdvanceOpponentTurnPhase())
+                {
+                    Debug.LogWarning("BattleAIService: 메인 페이즈로 이동하지 못했습니다.");
+                    yield break;
+                }
+            }
+
+            // 자동 페이즈 진행으로 턴이 변경되었거나 메인에 도달하지 못한 경우 종료
+            if (battleManager.CurrentTurnPlayer != opponent ||
+                battleManager.CurrentTurnPhase != BattleEnums.TurnPhase.Main)
+            {
                 yield break;
             }
 
             yield return new WaitForSeconds(ActionDelay);
 
+            // 메인 페이즈에서 낼 수 있는 카드를 반복해서 소환
             while (TryPlayLowestCostCard(opponent))
             {
                 yield return new WaitForSeconds(ActionDelay);
+
+                if (battleManager.IsGameOver ||
+                    battleManager.CurrentTurnPlayer != opponent ||
+                    battleManager.CurrentTurnPhase != BattleEnums.TurnPhase.Main)
+                {
+                    yield break;
+                }
             }
 
+            // 프론트라인이 비어 있으면 BattleManager가 배틀을 건너뛰고 턴을 넘김
             if (!battleManager.AdvanceOpponentTurnPhase())
             {
                 Debug.LogWarning("BattleAIService: 배틀 페이즈로 이동하지 못했습니다.");
                 yield break;
             }
 
+            // 배틀을 건너뛰어 다음 플레이어 턴으로 넘어간 경우 AI 행동 종료
+            if (battleManager.CurrentTurnPlayer != opponent ||
+                battleManager.CurrentTurnPhase != BattleEnums.TurnPhase.Battle)
+            {
+                yield break;
+            }
+
             yield return new WaitForSeconds(ActionDelay);
 
+            // 상대 프론트라인의 Active 카드를 공격자로 처리
             if (opponent.field != null)
             {
                 CardRuntimeData[] attackers = opponent.field.ToArray();
 
                 for (int i = 0; i < attackers.Length; i++)
                 {
+                    if (battleManager.IsGameOver ||
+                        battleManager.CurrentTurnPlayer != opponent ||
+                        battleManager.CurrentTurnPhase != BattleEnums.TurnPhase.Battle)
+                    {
+                        yield break;
+                    }
+
                     CardRuntimeData attacker = attackers[i];
 
-                    if (attacker == null || attacker.fieldPosition != BattleEnums.FieldPosition.FrontLine || attacker.cardState != CardEnums.CardState.Active)
+                    if (attacker == null ||
+                        attacker.fieldPosition != BattleEnums.FieldPosition.FrontLine ||
+                        attacker.cardState != CardEnums.CardState.Active)
                     {
                         continue;
                     }
@@ -92,16 +138,23 @@ namespace Battle
                         continue;
                     }
 
+                    // 내 블록 선택이 끝날 때까지 대기
                     if (battleManager.IsWaitingForBlock)
                     {
                         while (battleManager.IsWaitingForBlock)
                         {
+                            if (battleManager.IsGameOver)
+                            {
+                                yield break;
+                            }
+
                             yield return null;
                         }
                     }
                     else if (revealedCard != null && securityOwner != null)
                     {
-                        if (UIManager.Instance != null && UIManager.Instance.TryRevealSecurityCard(securityOwner, revealedCard))
+                        if (UIManager.Instance != null &&
+                            UIManager.Instance.TryRevealSecurityCard(securityOwner, revealedCard))
                         {
                             yield return new WaitForSecondsRealtime(SecurityRevealWait);
                         }
@@ -117,10 +170,15 @@ namespace Battle
                 }
             }
 
-            // 배틀 후 엔드 페이즈를 처리하고 내 시작 페이즈로 턴 전달
-            if (!battleManager.AdvanceOpponentTurnPhase() || !battleManager.AdvanceOpponentTurnPhase())
+            // 배틀 페이즈 종료 요청: 엔드 처리 후 BattleManager가 자동으로 다음 턴을 시작
+            if (!battleManager.IsGameOver &&
+                battleManager.CurrentTurnPlayer == opponent &&
+                battleManager.CurrentTurnPhase == BattleEnums.TurnPhase.Battle)
             {
-                Debug.LogWarning("BattleAIService: AI 턴을 정상적으로 종료하지 못했습니다.");
+                if (!battleManager.AdvanceOpponentTurnPhase())
+                {
+                    Debug.LogWarning("BattleAIService: AI 엔드 페이즈 처리에 실패했습니다.");
+                }
             }
         }
 
@@ -142,7 +200,9 @@ namespace Battle
             {
                 CardRuntimeData candidate = player.hand[i];
 
-                if (candidate == null || candidate.cardData == null || candidate.cardData.CardType != CardEnums.CardType.Character)
+                if (candidate == null ||
+                    candidate.cardData == null ||
+                    candidate.cardData.CardType != CardEnums.CardType.Character)
                 {
                     continue;
                 }
@@ -177,7 +237,9 @@ namespace Battle
 
             int slotIndex = FindEmptySlot(player, BattleEnums.FieldPosition.FrontLine);
 
-            if (slotIndex < 0 || !cardZoneManager.MoveCard(player, selectedCard, BattleEnums.CardZone.Field, BattleEnums.FieldPosition.FrontLine, slotIndex))
+            if (slotIndex < 0 ||
+                !cardZoneManager.MoveCard(player, selectedCard, BattleEnums.CardZone.Field,
+                    BattleEnums.FieldPosition.FrontLine, slotIndex))
             {
                 return false;
             }
@@ -209,7 +271,9 @@ namespace Battle
                 {
                     CardRuntimeData fieldCard = player.field[i];
 
-                    if (fieldCard != null && fieldCard.fieldPosition == position && fieldCard.fieldSlotIndex == slotIndex)
+                    if (fieldCard != null &&
+                        fieldCard.fieldPosition == position &&
+                        fieldCard.fieldSlotIndex == slotIndex)
                     {
                         isOccupied = true;
                         break;

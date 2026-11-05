@@ -1,3 +1,4 @@
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -159,6 +160,7 @@ namespace Manager
                 BattleManager.Instance.OnGameEnded += HandleGameEnded;
                 BattleManager.Instance.OnTurnPhaseChanged += HandleTurnPhaseChanged;
                 BattleManager.Instance.OnHandLimitSelectionRequested += HandleHandLimitSelectionRequested;
+
                 HandleTurnPhaseChanged(BattleManager.Instance.CurrentTurnPhase);
             }
 
@@ -235,6 +237,22 @@ namespace Manager
             if (BattleManager.Instance == null)
             {
                 Debug.LogError("UIManager: BattleManager를 찾을 수 없습니다.");
+                return;
+            }
+
+            if (BattleManager.Instance.CurrentTurnPlayer != BattleManager.Instance.LocalPlayerData ||
+                BattleManager.Instance.IsWaitingForHandLimitSelection ||
+                BattleManager.Instance.IsGameOver)
+            {
+                return;
+            }
+
+            BattleEnums.TurnPhase currentPhase = BattleManager.Instance.CurrentTurnPhase;
+
+            if (currentPhase != BattleEnums.TurnPhase.Move &&
+                currentPhase != BattleEnums.TurnPhase.Main &&
+                currentPhase != BattleEnums.TurnPhase.Battle)
+            {
                 return;
             }
 
@@ -333,10 +351,9 @@ namespace Manager
                 return;
             }
 
-            string playerName = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData
-                ? "내 턴"
-                : "상대 턴";
+            bool isLocalTurn = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData;
 
+            string playerName = isLocalTurn ? "내 턴" : "상대 턴";
             string phaseName;
 
             switch (phase)
@@ -344,21 +361,27 @@ namespace Manager
                 case BattleEnums.TurnPhase.Start:
                     phaseName = "시작 페이즈";
                     break;
+
                 case BattleEnums.TurnPhase.ExtraDraw:
                     phaseName = "엑스트라 드로우 페이즈";
                     break;
+
                 case BattleEnums.TurnPhase.Move:
                     phaseName = "이동 페이즈";
                     break;
+
                 case BattleEnums.TurnPhase.Main:
                     phaseName = "메인 페이즈";
                     break;
+
                 case BattleEnums.TurnPhase.Battle:
                     phaseName = "배틀 페이즈";
                     break;
+
                 case BattleEnums.TurnPhase.End:
                     phaseName = "엔드 페이즈";
                     break;
+
                 default:
                     phaseName = "대기 중";
                     break;
@@ -369,7 +392,8 @@ namespace Manager
                 turnPhaseText.text = $"{playerName} - {phaseName}";
             }
 
-            bool isLocalExtraDrawPhase = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData && phase == BattleEnums.TurnPhase.ExtraDraw;
+            bool isLocalExtraDrawPhase = isLocalTurn &&
+                                         phase == BattleEnums.TurnPhase.ExtraDraw;
 
             if (extraDrawPanel != null)
             {
@@ -378,7 +402,8 @@ namespace Manager
 
             if (extraDrawButton != null)
             {
-                extraDrawButton.interactable = isLocalExtraDrawPhase && BattleManager.Instance.CanTakeExtraDraw;
+                extraDrawButton.interactable = isLocalExtraDrawPhase &&
+                                               BattleManager.Instance.CanTakeExtraDraw;
             }
 
             if (passExtraDrawButton != null)
@@ -386,10 +411,16 @@ namespace Manager
                 passExtraDrawButton.interactable = isLocalExtraDrawPhase;
             }
 
+            bool canAdvancePhase = phase == BattleEnums.TurnPhase.Move ||
+                                   phase == BattleEnums.TurnPhase.Main ||
+                                   phase == BattleEnums.TurnPhase.Battle;
+
             if (endTurnButton != null)
             {
-                bool isLocalTurn = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData;
-                endTurnButton.interactable = isLocalTurn && !isLocalExtraDrawPhase && !BattleManager.Instance.IsWaitingForHandLimitSelection && !BattleManager.Instance.IsGameOver;
+                endTurnButton.interactable = isLocalTurn &&
+                                             canAdvancePhase &&
+                                             !BattleManager.Instance.IsWaitingForHandLimitSelection &&
+                                             !BattleManager.Instance.IsGameOver;
             }
         }
 
@@ -959,9 +990,3 @@ namespace Manager
         #endregion
     }
 }
-
-
-
-
-
-
