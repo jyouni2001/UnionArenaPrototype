@@ -20,6 +20,7 @@ namespace Manager
 
         [Header("일반 손패 UI")]
         [SerializeField] private UI.HandView playerHandView; // 내 손패 UI
+        [SerializeField] private UI.HandView opponentHandView; // 상대 손패 뒷면 UI
 
         [Header("플레이어 프론트라인 UI")]
         [SerializeField] private UI.FieldSlotView[] playerFrontLineSlots = new UI.FieldSlotView[4]; // 내 프론트라인 슬롯
@@ -32,6 +33,10 @@ namespace Manager
 
         [Header("상대 에너지라인 UI")]
         [SerializeField] private UI.FieldSlotView[] opponentEnergyLineSlots = new UI.FieldSlotView[4]; // 상대 에너지라인 슬롯
+
+        [Header("영역별 카드 수 UI")]
+        [SerializeField] private UI.ZoneCountView playerZoneCountView; // 내 덱·트래쉬·리무브 카드 수
+        [SerializeField] private UI.ZoneCountView opponentZoneCountView; // 상대 덱·트래쉬·리무브 카드 수
 
         [Header("플레이어 에너지 표시 UI")]
         [SerializeField] private UI.EnergyAreaView playerEnergyAreaView; // 내 에너지 표시 UI
@@ -194,12 +199,14 @@ namespace Manager
             }
 
             RefreshPlayerHand();
+            RefreshOpponentHand();
             RefreshPlayerField();
             RefreshOpponentField();
             RefreshSecurityViews();
+            RefreshAllZoneCounts();
         }
 
-        // 카드 영역 변경에 따라 관련 UI 갱신을 예약
+        // 카드 영역 변경에 따라 필요한 UI를 갱신
         private void HandleZoneChanged(PlayerGameData playerData, BattleEnums.CardZone changedZone)
         {
             if (BattleManager.Instance == null || playerData == null)
@@ -216,9 +223,21 @@ namespace Manager
                 RefreshSecurityViews();
             }
 
+            if (changedZone == BattleEnums.CardZone.Deck ||
+                changedZone == BattleEnums.CardZone.Trash ||
+                changedZone == BattleEnums.CardZone.Remove)
+            {
+                RefreshZoneCountView(playerData);
+            }
+
             if (isLocalPlayer && (changedZone == BattleEnums.CardZone.Hand || changedZone == BattleEnums.CardZone.Field))
             {
                 SchedulePlayerUIRefresh();
+            }
+
+            if (isOpponentPlayer && changedZone == BattleEnums.CardZone.Hand)
+            {
+                RefreshOpponentHand();
             }
 
             if (isOpponentPlayer && changedZone == BattleEnums.CardZone.Field)
@@ -253,11 +272,9 @@ namespace Manager
                 return;
             }
 
-            bool localPlayerWon = winner == BattleManager.Instance.LocalPlayerData;
-
             if (gameOverText != null)
             {
-                gameOverText.text = localPlayerWon ? "승리!" : "패배";
+                gameOverText.text = winner.playerIndex == 0 ? "PlayerA Win!" : "PlayerB Win!";
             }
 
             if (gameOverPanel != null)
@@ -275,7 +292,7 @@ namespace Manager
                 blockChoiceView.Hide();
             }
 
-            Debug.Log(localPlayerWon ? "UIManager: 게임 승리 화면을 표시합니다." : "UIManager: 게임 패배 화면을 표시합니다.");
+            Debug.Log("UIManager: 게임 종료 화면을 표시합니다.");
         }
 
         // 상대 공격에 대응할 블록 선택 UI를 표시
@@ -401,7 +418,9 @@ namespace Manager
                 if (BattleManager.Instance != null && BattleManager.Instance.IsWaitingForInitialHandChoice)
                 {
                     RefreshMulliganHand();
+                    RefreshOpponentHand();
                     RefreshSecurityViews();
+                    RefreshAllZoneCounts();
                     ShowMulliganPanel();
                     yield break;
                 }
@@ -439,6 +458,21 @@ namespace Manager
             }
 
             playerHandView.SetCards(BattleManager.Instance.LocalPlayerData.hand);
+        }
+
+        // 상대 손패 장수만큼 카드 뒷면을 표시
+        public void RefreshOpponentHand()
+        {
+            if (BattleManager.Instance == null || BattleManager.Instance.OpponentPlayerData == null || opponentHandView == null)
+            {
+                return;
+            }
+
+            int handCount = BattleManager.Instance.OpponentPlayerData.hand != null
+                ? BattleManager.Instance.OpponentPlayerData.hand.Count
+                : 0;
+
+            opponentHandView.SetCardBackCount(handCount);
         }
 
         // 내 필드 데이터를 프론트라인과 에너지라인 UI에 표시
@@ -516,7 +550,7 @@ namespace Manager
             return false;
         }
 
-        // 양쪽 플레이어의 시큐리티 수에 맞춰 카드 UI 갱신
+        // 양쪽 플레이어의 시큐리티 수에 맞춰 카드 UI를 갱신
         public void RefreshSecurityViews()
         {
             if (BattleManager.Instance == null)
@@ -536,6 +570,49 @@ namespace Manager
             {
                 opponentSecurityAreaView.SetSecurityCards(opponentPlayer.security);
             }
+        }
+
+        // 지정 플레이어의 덱·트래쉬·리무브 카드 수 UI를 갱신
+        private void RefreshZoneCountView(PlayerGameData playerData)
+        {
+            if (BattleManager.Instance == null || playerData == null)
+            {
+                return;
+            }
+
+            UI.ZoneCountView zoneCountView = null;
+
+            if (playerData == BattleManager.Instance.LocalPlayerData)
+            {
+                zoneCountView = playerZoneCountView;
+            }
+            else if (playerData == BattleManager.Instance.OpponentPlayerData)
+            {
+                zoneCountView = opponentZoneCountView;
+            }
+
+            if (zoneCountView == null)
+            {
+                return;
+            }
+
+            int deckCount = playerData.deck != null ? playerData.deck.Count : 0;
+            int trashCount = playerData.trash != null ? playerData.trash.Count : 0;
+            int removeCount = playerData.remove != null ? playerData.remove.Count : 0;
+
+            zoneCountView.SetCounts(deckCount, trashCount, removeCount);
+        }
+
+        // 양쪽 플레이어의 영역별 카드 수 UI를 갱신
+        private void RefreshAllZoneCounts()
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            RefreshZoneCountView(BattleManager.Instance.LocalPlayerData);
+            RefreshZoneCountView(BattleManager.Instance.OpponentPlayerData);
         }
 
         // 에너지 계산 결과를 에너지 표시 UI에 전달
@@ -634,9 +711,11 @@ namespace Manager
             }
 
             RefreshPlayerHand();
+            RefreshOpponentHand();
             RefreshPlayerField();
             RefreshOpponentField();
             RefreshSecurityViews();
+            RefreshAllZoneCounts();
             isProcessing = false;
         }
 
@@ -661,9 +740,11 @@ namespace Manager
             }
 
             RefreshPlayerHand();
+            RefreshOpponentHand();
             RefreshPlayerField();
             RefreshOpponentField();
             RefreshSecurityViews();
+            RefreshAllZoneCounts();
             HideMulliganPanel();
             SetMulliganButtons(false);
             isProcessing = false;
