@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Battle;
@@ -6,30 +7,43 @@ using Enums;
 
 namespace Manager
 {
-    // 게임 화면의 UI 연결 및 갱신 관리
+    // 게임 화면의 UI 참조, 이벤트 연결, 화면 갱신을 조율
     public class UIManager : BaseManager
     {
         #region 싱글톤 및 UI 참조
 
-        public static UIManager Instance { get; private set; }
+        public static UIManager Instance { get; private set; } // UI 매니저 싱글톤
 
         [Header("멀리건 UI")]
         [SerializeField] private GameObject mulliganPanel; // 멀리건 패널
         [SerializeField] private UI.HandView mulliganHandView; // 멀리건 손패 UI
 
         [Header("일반 손패 UI")]
-        [SerializeField] private UI.HandView playerHandView; // 내 일반 손패 UI
+        [SerializeField] private UI.HandView playerHandView; // 내 손패 UI
 
         [Header("플레이어 프론트라인 UI")]
-        [SerializeField] private UI.FieldSlotView[] playerFrontLineSlots =
-            new UI.FieldSlotView[4]; // 프론트라인 슬롯 UI 배열
+        [SerializeField] private UI.FieldSlotView[] playerFrontLineSlots = new UI.FieldSlotView[4]; // 내 프론트라인 슬롯
 
         [Header("플레이어 에너지라인 UI")]
-        [SerializeField] private UI.FieldSlotView[] playerEnergyLineSlots =
-            new UI.FieldSlotView[4]; // 에너지라인 슬롯 UI 배열
-        
+        [SerializeField] private UI.FieldSlotView[] playerEnergyLineSlots = new UI.FieldSlotView[4]; // 내 에너지라인 슬롯
+
+        [Header("상대 프론트라인 UI")]
+        [SerializeField] private UI.FieldSlotView[] opponentFrontLineSlots = new UI.FieldSlotView[4]; // 상대 프론트라인 슬롯
+
+        [Header("상대 에너지라인 UI")]
+        [SerializeField] private UI.FieldSlotView[] opponentEnergyLineSlots = new UI.FieldSlotView[4]; // 상대 에너지라인 슬롯
+
         [Header("플레이어 에너지 표시 UI")]
-        [SerializeField] private UI.EnergyAreaView playerEnergyAreaView;
+        [SerializeField] private UI.EnergyAreaView playerEnergyAreaView; // 내 에너지 표시 UI
+
+        [Header("내 시큐리티 UI")]
+        [SerializeField] private UI.SecurityAreaView playerSecurityAreaView; // 내 시큐리티 카드 UI
+
+        [Header("상대 시큐리티 UI")]
+        [SerializeField] private UI.SecurityAreaView opponentSecurityAreaView; // 상대 시큐리티 카드 UI
+
+        [Header("블록 선택 UI")]
+        [SerializeField] private UI.BlockChoiceView blockChoiceView; // 블록 카드 선택 패널
 
         [Header("멀리건 버튼")]
         [SerializeField] private Button keepButton; // 손패 유지 버튼
@@ -38,58 +52,52 @@ namespace Manager
         [Header("턴 버튼")]
         [SerializeField] private Button endTurnButton; // 턴 종료 버튼
 
-        private bool isProcessing = false; // 버튼 중복 입력 방지
-        private Coroutine _refreshCoroutine; // UI 갱신 코루틴
+        private bool isProcessing; // 버튼 입력 중복 처리 방지
+        private Coroutine playerRefreshCoroutine; // 내 UI 갱신 코루틴
+        private Coroutine opponentRefreshCoroutine; // 상대 필드 갱신 코루틴
 
         #endregion
 
         #region 생명 주기 및 이벤트 연결
 
-        // 싱글톤 등록 및 기본 초기화
+        // 싱글톤을 등록하고 공통 초기화를 시작
         protected override void Awake()
         {
-            // 이미 다른 UI 매니저가 존재하면 현재 오브젝트 제거
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
                 return;
             }
 
-            Instance = this; // 현재 UI 매니저를 싱글톤으로 등록
-
-            base.Awake(); // 부모 매니저의 초기화 실행
+            Instance = this;
+            base.Awake();
         }
 
-        // UI 매니저 초기화
+        // 버튼 입력 처리 상태를 초기화
         protected override void Initialize()
         {
-            isProcessing = false; // 버튼 처리 상태 초기화
-
-            base.Initialize(); // 부모 매니저의 초기화 실행
+            isProcessing = false;
+            base.Initialize();
         }
 
-        // 버튼 이벤트 및 카드 영역 변경 이벤트 등록
+        // 버튼과 카드 영역 변경 이벤트를 연결
         private void Start()
         {
-            // 유지 버튼이 연결되어 있으면 클릭 이벤트 등록
             if (keepButton != null)
             {
                 keepButton.onClick.AddListener(KeepInitialHand);
             }
 
-            // 멀리건 버튼이 연결되어 있으면 클릭 이벤트 등록
             if (mulliganButton != null)
             {
                 mulliganButton.onClick.AddListener(MulliganInitialHand);
             }
 
-            // 턴 종료 버튼이 연결되어 있으면 클릭 이벤트 등록
             if (endTurnButton != null)
             {
                 endTurnButton.onClick.AddListener(HandleEndTurnButtonClicked);
             }
 
-            // 카드 영역 매니저가 존재하면 공통 영역 변경 이벤트 구독
             if (CardZoneManager.Instance != null)
             {
                 CardZoneManager.Instance.OnZoneChanged += HandleZoneChanged;
@@ -99,44 +107,56 @@ namespace Manager
                 Debug.LogError("UIManager: CardZoneManager를 찾을 수 없습니다.");
             }
 
+            if (BattleManager.Instance != null)
+            {
+                BattleManager.Instance.OnBlockChoiceRequested += HandleBlockChoiceRequested;
+                BattleManager.Instance.OnCombatFieldChanged += HandleCombatFieldChanged;
+            }
+
             StartCoroutine(WaitForInitialHand());
         }
 
-        // 버튼 이벤트, 카드 영역 변경 이벤트 및 싱글톤 해제
+        // 버튼과 게임 이벤트 구독을 해제
         private void OnDestroy()
         {
-            // 실행 중인 UI 갱신 코루틴 중지
-            if (_refreshCoroutine != null)
+            if (playerRefreshCoroutine != null)
             {
-                StopCoroutine(_refreshCoroutine);
-                _refreshCoroutine = null;
+                StopCoroutine(playerRefreshCoroutine);
+                playerRefreshCoroutine = null;
             }
 
-            // 유지 버튼 이벤트 해제
+            if (opponentRefreshCoroutine != null)
+            {
+                StopCoroutine(opponentRefreshCoroutine);
+                opponentRefreshCoroutine = null;
+            }
+
             if (keepButton != null)
             {
                 keepButton.onClick.RemoveListener(KeepInitialHand);
             }
 
-            // 멀리건 버튼 이벤트 해제
             if (mulliganButton != null)
             {
                 mulliganButton.onClick.RemoveListener(MulliganInitialHand);
             }
 
-            // 턴 종료 버튼 이벤트 해제
             if (endTurnButton != null)
             {
                 endTurnButton.onClick.RemoveListener(HandleEndTurnButtonClicked);
             }
 
-            // 카드 영역 변경 이벤트 구독 해제
             if (CardZoneManager.Instance != null)
             {
                 CardZoneManager.Instance.OnZoneChanged -= HandleZoneChanged;
             }
 
-            // 현재 인스턴스가 싱글톤으로 등록된 객체일 때만 초기화
+            if (BattleManager.Instance != null)
+            {
+                BattleManager.Instance.OnBlockChoiceRequested -= HandleBlockChoiceRequested;
+                BattleManager.Instance.OnCombatFieldChanged -= HandleCombatFieldChanged;
+            }
+
             if (Instance == this)
             {
                 Instance = null;
@@ -145,9 +165,9 @@ namespace Manager
 
         #endregion
 
-        #region 버튼 및 카드 영역 이벤트 조율
+        #region 버튼 및 게임 이벤트 처리
 
-        // 턴 종료 버튼 처리
+        // 턴 종료 요청을 BattleManager에 전달
         private void HandleEndTurnButtonClicked()
         {
             if (BattleManager.Instance == null)
@@ -164,53 +184,143 @@ namespace Manager
 
             RefreshPlayerHand();
             RefreshPlayerField();
+            RefreshOpponentField();
+            RefreshSecurityViews();
         }
 
-        // 카드 영역 변경 이벤트 수신
-        private void HandleZoneChanged(
-            PlayerGameData playerData,
-            BattleEnums.CardZone changedZone)
+        // 카드 영역 변경에 따라 관련 UI 갱신을 예약
+        private void HandleZoneChanged(PlayerGameData playerData, BattleEnums.CardZone changedZone)
         {
-            // 전투 매니저 또는 내 플레이어 데이터가 준비되지 않았다면 갱신 중단
-            if (BattleManager.Instance == null ||
-                BattleManager.Instance.LocalPlayerData == null)
+            if (BattleManager.Instance == null || playerData == null)
             {
                 return;
             }
 
-            // 상대방 데이터가 변경된 경우 내 UI는 갱신하지 않음
-            if (playerData != BattleManager.Instance.LocalPlayerData)
+            bool isLocalPlayer = playerData == BattleManager.Instance.LocalPlayerData;
+            bool isOpponentPlayer = playerData == BattleManager.Instance.OpponentPlayerData;
+
+            if ((changedZone == BattleEnums.CardZone.Security || changedZone == BattleEnums.CardZone.Trash) && (isLocalPlayer || isOpponentPlayer))
             {
-                return;
+                RefreshSecurityViews();
             }
 
-            // 드래그 종료 이후 손패와 필드 UI를 함께 갱신하도록 예약
-            SchedulePlayerUIRefresh();
+            if (isLocalPlayer && (changedZone == BattleEnums.CardZone.Hand || changedZone == BattleEnums.CardZone.Field))
+            {
+                SchedulePlayerUIRefresh();
+            }
+
+            if (isOpponentPlayer && changedZone == BattleEnums.CardZone.Field)
+            {
+                ScheduleOpponentFieldRefresh();
+            }
         }
 
-        // 플레이어 UI 갱신 예약
+        // 전투 중 카드 상태가 바뀌면 해당 플레이어 필드를 갱신
+        private void HandleCombatFieldChanged(PlayerGameData playerData)
+        {
+            if (BattleManager.Instance == null || playerData == null)
+            {
+                return;
+            }
+
+            if (playerData == BattleManager.Instance.LocalPlayerData)
+            {
+                RefreshPlayerField();
+            }
+            else if (playerData == BattleManager.Instance.OpponentPlayerData)
+            {
+                RefreshOpponentField();
+            }
+        }
+
+        // 상대 공격에 대응할 블록 선택 UI를 표시
+        private void HandleBlockChoiceRequested(CardRuntimeData attacker)
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            List<CardRuntimeData> blockers = BattleManager.Instance.GetActiveLocalBlockers();
+
+            if (blockChoiceView == null || blockers.Count == 0)
+            {
+                HandlePassBlockChoice();
+                return;
+            }
+
+            blockChoiceView.Show(attacker, blockers, HandleBlockerSelected, HandlePassBlockChoice);
+        }
+
+        // 선택한 카드로 공격을 블록하고 결과를 화면에 반영
+        private void HandleBlockerSelected(CardRuntimeData blocker)
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            if (!BattleManager.Instance.TryResolveLocalBlock(blocker, out BattleCombatService.Resolution resolution, out string errorMessage))
+            {
+                Debug.LogWarning("UIManager: 블록 처리 실패. " + errorMessage);
+                return;
+            }
+
+            if (blockChoiceView != null)
+            {
+                blockChoiceView.Hide();
+            }
+
+            RefreshPlayerField();
+            RefreshOpponentField();
+            Debug.Log($"UIManager: 블록 처리 완료. 결과 = {resolution.Type}");
+        }
+
+        // 블록을 포기하고 시큐리티 공격을 처리
+        private void HandlePassBlockChoice()
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            if (!BattleManager.Instance.TryPassLocalBlock(out BattleCombatService.Resolution resolution,
+                    out PlayerGameData securityOwner, out CardRuntimeData revealedSecurityCard, out string errorMessage))
+            {
+                Debug.LogWarning("UIManager: 공격 통과 처리 실패. " + errorMessage);
+                return;
+            }
+
+            if (blockChoiceView != null)
+            {
+                blockChoiceView.Hide();
+            }
+
+            if (revealedSecurityCard != null && !TryRevealSecurityCard(securityOwner, revealedSecurityCard))
+            {
+                Debug.LogWarning("UIManager: 시큐리티 공개 UI가 없어 바로 트래시로 이동합니다.");
+                BattleManager.Instance.MoveRevealedSecurityToTrash(securityOwner, revealedSecurityCard);
+            }
+
+            RefreshSecurityViews();
+        }
+
+        // 다음 프레임에 내 손패와 필드 UI 갱신을 예약
         private void SchedulePlayerUIRefresh()
         {
-            // 이미 갱신 작업이 예약되어 있으면 중복 실행하지 않음
-            if (_refreshCoroutine != null)
+            if (playerRefreshCoroutine == null)
             {
-                return;
+                playerRefreshCoroutine = StartCoroutine(RefreshPlayerUIAfterFrame());
             }
-
-            _refreshCoroutine = StartCoroutine(RefreshPlayerUIAfterFrame());
         }
 
-        // 다음 프레임에 플레이어 UI 갱신
+        // 카드 이동 처리가 끝난 뒤 내 UI를 갱신
         private IEnumerator RefreshPlayerUIAfterFrame()
         {
-            // 현재 프레임의 드래그 이벤트 처리가 끝날 때까지 대기
             yield return null;
+            playerRefreshCoroutine = null;
 
-            _refreshCoroutine = null;
-
-            // 전투 매니저 또는 플레이어 데이터가 없으면 갱신 중단
-            if (BattleManager.Instance == null ||
-                BattleManager.Instance.LocalPlayerData == null)
+            if (BattleManager.Instance == null || BattleManager.Instance.LocalPlayerData == null)
             {
                 yield break;
             }
@@ -219,18 +329,34 @@ namespace Manager
             RefreshPlayerField();
         }
 
-        // 최초 손패 준비 완료 대기
+        // 다음 프레임에 상대 필드 UI 갱신을 예약
+        private void ScheduleOpponentFieldRefresh()
+        {
+            if (opponentRefreshCoroutine == null)
+            {
+                opponentRefreshCoroutine = StartCoroutine(RefreshOpponentFieldAfterFrame());
+            }
+        }
+
+        // 카드 이동 처리가 끝난 뒤 상대 필드 UI를 갱신
+        private IEnumerator RefreshOpponentFieldAfterFrame()
+        {
+            yield return null;
+            opponentRefreshCoroutine = null;
+            RefreshOpponentField();
+        }
+
+        // 최초 손패 선택 상태가 준비될 때까지 대기
         private IEnumerator WaitForInitialHand()
         {
             float waitTime = 0f;
 
-            // 최대 10초 동안 최초 손패 선택 상태 확인
             while (waitTime < 10f)
             {
-                if (BattleManager.Instance != null &&
-                    BattleManager.Instance.IsWaitingForInitialHandChoice)
+                if (BattleManager.Instance != null && BattleManager.Instance.IsWaitingForInitialHandChoice)
                 {
                     RefreshMulliganHand();
+                    RefreshSecurityViews();
                     ShowMulliganPanel();
                     yield break;
                 }
@@ -244,81 +370,130 @@ namespace Manager
 
         #endregion
 
-        #region UI 표시 갱신
+        #region 손패 및 필드 UI 갱신
 
-        // 멀리건 손패 표시
+        // 현재 손패 데이터를 멀리건 UI에 표시
         public void RefreshMulliganHand()
         {
-            if (BattleManager.Instance == null ||
-                BattleManager.Instance.LocalPlayerData == null ||
-                mulliganHandView == null)
+            if (BattleManager.Instance == null || BattleManager.Instance.LocalPlayerData == null || mulliganHandView == null)
             {
-                Debug.LogError("UIManager: 멀리건 손패 연결을 확인하세요.");
+                Debug.LogError("UIManager: 멀리건 손패 UI 연결을 확인하세요.");
                 return;
             }
 
-            mulliganHandView.SetCards(
-                BattleManager.Instance.LocalPlayerData.hand);
+            mulliganHandView.SetCards(BattleManager.Instance.LocalPlayerData.hand);
         }
 
-        // 일반 손패 표시
+        // 현재 손패 데이터를 일반 손패 UI에 표시
         public void RefreshPlayerHand()
         {
-            if (BattleManager.Instance == null ||
-                BattleManager.Instance.LocalPlayerData == null ||
-                playerHandView == null)
+            if (BattleManager.Instance == null || BattleManager.Instance.LocalPlayerData == null || playerHandView == null)
             {
                 Debug.LogError("UIManager: 일반 손패 UI 연결을 확인하세요.");
                 return;
             }
 
-            playerHandView.SetCards(
-                BattleManager.Instance.LocalPlayerData.hand);
+            playerHandView.SetCards(BattleManager.Instance.LocalPlayerData.hand);
         }
 
-        // 플레이어 필드 UI 갱신
+        // 내 필드 데이터를 프론트라인과 에너지라인 UI에 표시
         public void RefreshPlayerField()
         {
-            if (BattleManager.Instance == null ||
-                BattleManager.Instance.LocalPlayerData == null)
+            if (BattleManager.Instance == null || BattleManager.Instance.LocalPlayerData == null)
             {
                 return;
             }
 
-            PlayerGameData playerData =
-                BattleManager.Instance.LocalPlayerData;
-
-            ClearFieldSlots(playerFrontLineSlots);
-            ClearFieldSlots(playerEnergyLineSlots);
-
-            if (playerData.field != null)
-            {
-                for (int i = 0; i < playerData.field.Count; i++)
-                {
-                    CardRuntimeData card = playerData.field[i];
-
-                    if (card == null)
-                    {
-                        continue;
-                    }
-
-                    int slotIndex = card.fieldSlotIndex;
-
-                    if (card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
-                    {
-                        ShowFieldCard(playerFrontLineSlots, slotIndex, card);
-                    }
-                    else if (card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
-                    {
-                        ShowFieldCard(playerEnergyLineSlots, slotIndex, card);
-                    }
-                }
-            }
-
+            RefreshFieldSlots(BattleManager.Instance.LocalPlayerData, playerFrontLineSlots, playerEnergyLineSlots);
             RefreshPlayerEnergy();
         }
-        
-        // 에너지 규칙 서비스의 결과를 에너지 View에 전달
+
+        // 상대 필드 데이터를 프론트라인과 에너지라인 UI에 표시
+        public void RefreshOpponentField()
+        {
+            if (BattleManager.Instance == null || BattleManager.Instance.OpponentPlayerData == null)
+            {
+                return;
+            }
+
+            RefreshFieldSlots(BattleManager.Instance.OpponentPlayerData, opponentFrontLineSlots, opponentEnergyLineSlots);
+        }
+
+        // 플레이어 필드 데이터를 해당 슬롯 UI에 표시
+        private void RefreshFieldSlots(PlayerGameData playerData, UI.FieldSlotView[] frontLineSlots, UI.FieldSlotView[] energyLineSlots)
+        {
+            ClearFieldSlots(frontLineSlots);
+            ClearFieldSlots(energyLineSlots);
+
+            if (playerData.field == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < playerData.field.Count; i++)
+            {
+                CardRuntimeData card = playerData.field[i];
+
+                if (card == null)
+                {
+                    continue;
+                }
+
+                if (card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
+                {
+                    ShowFieldCard(frontLineSlots, card.fieldSlotIndex, card);
+                }
+                else if (card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
+                {
+                    ShowFieldCard(energyLineSlots, card.fieldSlotIndex, card);
+                }
+            }
+        }
+
+        // 카드 소유자에 맞는 시큐리티 뷰에 공개 요청을 전달
+        public bool TryRevealSecurityCard(PlayerGameData securityOwner, CardRuntimeData securityCard)
+        {
+            if (BattleManager.Instance == null || securityOwner == null || securityCard == null)
+            {
+                return false;
+            }
+
+            if (securityOwner == BattleManager.Instance.LocalPlayerData && playerSecurityAreaView != null)
+            {
+                return playerSecurityAreaView.TryRevealSecurityCard(securityOwner, securityCard);
+            }
+
+            if (securityOwner == BattleManager.Instance.OpponentPlayerData && opponentSecurityAreaView != null)
+            {
+                return opponentSecurityAreaView.TryRevealSecurityCard(securityOwner, securityCard);
+            }
+
+            return false;
+        }
+
+        // 양쪽 플레이어의 시큐리티 수에 맞춰 카드 UI 갱신
+        public void RefreshSecurityViews()
+        {
+            if (BattleManager.Instance == null)
+            {
+                return;
+            }
+
+            PlayerGameData localPlayer = BattleManager.Instance.LocalPlayerData;
+            PlayerGameData opponentPlayer = BattleManager.Instance.OpponentPlayerData;
+
+            if (playerSecurityAreaView != null && localPlayer != null)
+            {
+                playerSecurityAreaView.SetSecurityCards(localPlayer.security);
+            }
+
+            if (opponentSecurityAreaView != null && opponentPlayer != null)
+            {
+                opponentSecurityAreaView.SetSecurityCards(opponentPlayer.security);
+            }
+        }
+
+        // 에너지 규칙 계산 결과를 에너지 표시 UI에 전달
         private void RefreshPlayerEnergy()
         {
             if (playerEnergyAreaView == null)
@@ -326,20 +501,12 @@ namespace Manager
                 return;
             }
 
-            PlayerGameData playerData = null;
-
-            if (BattleManager.Instance != null)
-            {
-                playerData = BattleManager.Instance.LocalPlayerData;
-            }
-
-            EnergySummary summary =
-                EnergyRuleService.GetEnergySummary(playerData);
-
+            PlayerGameData playerData = BattleManager.Instance != null ? BattleManager.Instance.LocalPlayerData : null;
+            EnergySummary summary = EnergyRuleService.GetEnergySummary(playerData);
             playerEnergyAreaView.SetEnergySummary(summary);
         }
 
-        // 필드 슬롯 배열의 카드 UI 초기화
+        // 필드 슬롯 카드 UI를 모두 비활성화
         private void ClearFieldSlots(UI.FieldSlotView[] slots)
         {
             if (slots == null)
@@ -356,11 +523,8 @@ namespace Manager
             }
         }
 
-        // 지정한 필드 슬롯에 카드 표시
-        private void ShowFieldCard(
-            UI.FieldSlotView[] slots,
-            int slotIndex,
-            CardRuntimeData card)
+        // 지정한 슬롯에 필드 카드를 표시
+        private void ShowFieldCard(UI.FieldSlotView[] slots, int slotIndex, CardRuntimeData card)
         {
             if (slots == null)
             {
@@ -369,15 +533,13 @@ namespace Manager
 
             if (slotIndex < 0 || slotIndex >= slots.Length)
             {
-                Debug.LogWarning(
-                    $"UIManager: 잘못된 필드 슬롯 번호입니다. SlotIndex: {slotIndex}");
+                Debug.LogWarning($"UIManager: 잘못된 필드 슬롯 번호입니다. SlotIndex = {slotIndex}");
                 return;
             }
 
             if (slots[slotIndex] == null)
             {
-                Debug.LogWarning(
-                    $"UIManager: 필드 슬롯 UI가 연결되지 않았습니다. SlotIndex: {slotIndex}");
+                Debug.LogWarning($"UIManager: 필드 슬롯 UI가 연결되지 않았습니다. SlotIndex = {slotIndex}");
                 return;
             }
 
@@ -388,7 +550,7 @@ namespace Manager
 
         #region 최초 손패 선택 UI
 
-        // 멀리건 패널 표시
+        // 멀리건 패널을 표시
         public void ShowMulliganPanel()
         {
             if (mulliganPanel != null)
@@ -397,7 +559,7 @@ namespace Manager
             }
         }
 
-        // 멀리건 패널 숨김
+        // 멀리건 패널을 숨김
         public void HideMulliganPanel()
         {
             if (mulliganPanel != null)
@@ -406,7 +568,7 @@ namespace Manager
             }
         }
 
-        // 최초 손패 유지
+        // 최초 손패 유지 요청을 처리
         public void KeepInitialHand()
         {
             if (isProcessing || BattleManager.Instance == null)
@@ -418,9 +580,7 @@ namespace Manager
             SetMulliganButtons(false);
             HideMulliganPanel();
 
-            bool success = BattleManager.Instance.KeepInitialHand();
-
-            if (!success)
+            if (!BattleManager.Instance.KeepInitialHand())
             {
                 ShowMulliganPanel();
                 SetMulliganButtons(true);
@@ -430,9 +590,12 @@ namespace Manager
 
             RefreshPlayerHand();
             RefreshPlayerField();
+            RefreshOpponentField();
+            RefreshSecurityViews();
+            isProcessing = false;
         }
 
-        // 최초 손패 멀리건
+        // 최초 손패 멀리건 요청을 처리
         public void MulliganInitialHand()
         {
             if (isProcessing || BattleManager.Instance == null)
@@ -444,9 +607,7 @@ namespace Manager
             SetMulliganButtons(false);
             HideMulliganPanel();
 
-            bool success = BattleManager.Instance.MulliganInitialHand();
-
-            if (!success)
+            if (!BattleManager.Instance.MulliganInitialHand())
             {
                 ShowMulliganPanel();
                 SetMulliganButtons(true);
@@ -455,13 +616,15 @@ namespace Manager
             }
 
             RefreshPlayerHand();
+            RefreshPlayerField();
+            RefreshOpponentField();
+            RefreshSecurityViews();
             HideMulliganPanel();
-
             SetMulliganButtons(false);
             isProcessing = false;
         }
 
-        // 멀리건 버튼 활성화 상태 변경
+        // 멀리건 버튼 입력 가능 여부를 설정
         private void SetMulliganButtons(bool interactable)
         {
             if (keepButton != null)
