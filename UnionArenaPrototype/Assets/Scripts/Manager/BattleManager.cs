@@ -619,6 +619,57 @@ namespace Manager
             return true;
         }
 
+        // 이동 페이즈에 내 에너지라인 카드를 프론트라인 빈 슬롯으로 이동
+        public bool TryMoveEnergyCardToFrontLine(PlayerGameData playerData, CardRuntimeData card, int targetSlotIndex, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (isGameOver || isWaitingForInitialHandChoice || IsWaitingForBlock)
+            {
+                errorMessage = "현재 상태에서는 필드 카드를 이동할 수 없습니다.";
+                return false;
+            }
+
+            if (playerData == null || playerData != localPlayerData || currentTurnPlayer != localPlayerData)
+            {
+                errorMessage = "내 턴에 내 필드 카드만 이동할 수 있습니다.";
+                return false;
+            }
+
+            if (currentTurnPhase != BattleEnums.TurnPhase.Move)
+            {
+                errorMessage = "이동 페이즈에만 에너지라인 카드를 옮길 수 있습니다.";
+                return false;
+            }
+
+            if (card == null || card.cardData == null || card.currentZone != BattleEnums.CardZone.Field || card.fieldPosition != BattleEnums.FieldPosition.EnergyLine || playerData.field == null || !playerData.field.Contains(card) || card.ownerPlayerIndex != playerData.playerIndex)
+            {
+                errorMessage = "내 에너지라인에 있는 카드만 이동할 수 있습니다.";
+                return false;
+            }
+
+            if (targetSlotIndex < 0 || targetSlotIndex >= 4)
+            {
+                errorMessage = "프론트라인 슬롯 번호가 올바르지 않습니다.";
+                return false;
+            }
+
+            if (CardZoneManager.Instance == null)
+            {
+                errorMessage = "CardZoneManager를 찾을 수 없습니다.";
+                return false;
+            }
+
+            if (!CardZoneManager.Instance.MoveCard(playerData, card, BattleEnums.CardZone.Field, BattleEnums.FieldPosition.FrontLine, targetSlotIndex))
+            {
+                errorMessage = "프론트라인 슬롯이 이미 사용 중이거나 이동에 실패했습니다.";
+                return false;
+            }
+
+            Debug.Log($"BattleManager: 에너지라인 카드 이동 완료. 카드 = {card.cardData.CardName}, 프론트라인 슬롯 = {targetSlotIndex}");
+            return true;
+        }
+
         // 엑스트라 드로우를 건너뛰고 이동 페이즈로 이동
         public bool PassExtraDraw()
         {
@@ -761,4 +812,6 @@ namespace Manager
         #endregion
     }
 }
+
+
 

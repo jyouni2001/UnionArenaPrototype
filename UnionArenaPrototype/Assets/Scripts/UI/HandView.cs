@@ -419,9 +419,22 @@ namespace UI
 
             if (handView._isDraggingFieldCard)
             {
-                // 필드 카드는 같은 라인에서 이동하거나 교환
-                moveSuccess = CardZoneManager.Instance.MoveOrSwapFieldCard(
-                    playerData, card, fieldSlot.GetFieldPosition(), fieldSlot.GetSlotIndex());
+                if (card.fieldPosition == Enums.BattleEnums.FieldPosition.EnergyLine && fieldSlot.GetFieldPosition() == Enums.BattleEnums.FieldPosition.FrontLine)
+                {
+                    // 이동 페이즈 에너지라인 이동 요청을 BattleManager에 전달
+                    moveSuccess = BattleManager.Instance.TryMoveEnergyCardToFrontLine(playerData, card, fieldSlot.GetSlotIndex(), out string moveError);
+
+                    if (!moveSuccess)
+                    {
+                        Debug.LogWarning("HandView: " + moveError);
+                        return false;
+                    }
+                }
+                else
+                {
+                    // 필드 카드는 같은 라인에서 이동하거나 교환
+                    moveSuccess = CardZoneManager.Instance.MoveOrSwapFieldCard(playerData, card, fieldSlot.GetFieldPosition(), fieldSlot.GetSlotIndex());
+                }
             }
             else
             {
