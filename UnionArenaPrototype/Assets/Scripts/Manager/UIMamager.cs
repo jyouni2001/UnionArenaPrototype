@@ -25,6 +25,9 @@ namespace Manager
         [Header("플레이어 에너지라인 UI")]
         [SerializeField] private UI.FieldSlotView[] playerEnergyLineSlots =
             new UI.FieldSlotView[4]; // 에너지라인 슬롯 UI 배열
+        
+        [Header("플레이어 에너지 표시 UI")]
+        [SerializeField] private UI.EnergyAreaView playerEnergyAreaView;
 
         [Header("멀리건 버튼")]
         [SerializeField] private Button keepButton; // 손패 유지 버튼
@@ -274,31 +277,52 @@ namespace Manager
             ClearFieldSlots(playerFrontLineSlots);
             ClearFieldSlots(playerEnergyLineSlots);
 
-            if (playerData.field == null)
+            if (playerData.field != null)
+            {
+                for (int i = 0; i < playerData.field.Count; i++)
+                {
+                    CardRuntimeData card = playerData.field[i];
+
+                    if (card == null)
+                    {
+                        continue;
+                    }
+
+                    int slotIndex = card.fieldSlotIndex;
+
+                    if (card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
+                    {
+                        ShowFieldCard(playerFrontLineSlots, slotIndex, card);
+                    }
+                    else if (card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
+                    {
+                        ShowFieldCard(playerEnergyLineSlots, slotIndex, card);
+                    }
+                }
+            }
+
+            RefreshPlayerEnergy();
+        }
+        
+        // 에너지 규칙 서비스의 결과를 에너지 View에 전달
+        private void RefreshPlayerEnergy()
+        {
+            if (playerEnergyAreaView == null)
             {
                 return;
             }
 
-            for (int i = 0; i < playerData.field.Count; i++)
+            PlayerGameData playerData = null;
+
+            if (BattleManager.Instance != null)
             {
-                CardRuntimeData card = playerData.field[i];
-
-                if (card == null)
-                {
-                    continue;
-                }
-
-                int slotIndex = card.fieldSlotIndex;
-
-                if (card.fieldPosition == BattleEnums.FieldPosition.FrontLine)
-                {
-                    ShowFieldCard(playerFrontLineSlots, slotIndex, card);
-                }
-                else if (card.fieldPosition == BattleEnums.FieldPosition.EnergyLine)
-                {
-                    ShowFieldCard(playerEnergyLineSlots, slotIndex, card);
-                }
+                playerData = BattleManager.Instance.LocalPlayerData;
             }
+
+            EnergySummary summary =
+                EnergyRuleService.GetEnergySummary(playerData);
+
+            playerEnergyAreaView.SetEnergySummary(summary);
         }
 
         // 필드 슬롯 배열의 카드 UI 초기화
