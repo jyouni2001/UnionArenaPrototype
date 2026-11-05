@@ -1,5 +1,4 @@
-﻿
-using UnityEngine;
+﻿using UnityEngine;
 using Data;
 using Enums;
 
@@ -9,24 +8,30 @@ namespace Battle
     [System.Serializable]
     public class CardRuntimeData
     {
-        #region Card Identity // 카드 기본 정보
+        #region Card Identity
 
         public int instanceId; // 게임 내 카드 개별 식별 번호
         public CardJsonData cardData; // 원본 카드 데이터
 
         #endregion
 
-        #region Card Location // 카드 위치 정보
+        #region Card Location
 
         public BattleEnums.CardZone currentZone; // 덱, 핸드, 필드, 시큐리티 구분
         public BattleEnums.FieldPosition fieldPosition; // 프론트/에너지 라인 구분
-        public int fieldSlotIndex = -1; // 필드에서 카드가 위치한 슬롯 번호, 필드에 없으면 -1
+        public int fieldSlotIndex = -1; // 필드 슬롯 번호, 필드에 없으면 -1
 
         #endregion
 
-        #region Card Ownership // 카드 소유자 정보
+        #region Card State
 
-        public int ownerPlayerIndex; // 카드 소유 식별 번호
+        public CardEnums.CardState cardState = CardEnums.CardState.None; // Active 또는 Rest 상태
+
+        #endregion
+
+        #region Card Ownership
+
+        public int ownerPlayerIndex; // 카드 소유 플레이어 번호
 
         #endregion
     }

@@ -1,28 +1,30 @@
-﻿
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using Battle;
 using Enums;
+using UnityEngine;
 
 namespace Manager
 {
-    // 카드의 영역 이동과 각 영역의 카드 리스트를 관리하는 매니저
+    // 카드 영역 서비스의 생명 주기와 변경 이벤트 전달을 조율
     public class CardZoneManager : BaseManager
     {
+        #region 싱글톤 및 서비스 참조
+
+        // 다른 클래스에서 카드 영역 요청을 보낼 때 사용하는 매니저 인스턴스
         public static CardZoneManager Instance { get; private set; }
 
-        // 카드 영역이 변경되었을 때 플레이어와 변경된 영역을 전달하는 이벤트
-        public event Action<PlayerGameData, BattleEnums.CardZone> OnZoneChanged;
+        // 카드 목록 변경과 이동 처리를 담당하는 서비스
+        private CardZoneService cardZoneService;
 
-        // 현재 진행 중인 카드 영역 일괄 변경 작업의 중첩 횟수
-        private int zoneUpdateBatchDepth = 0;
+        // 여러 카드 변경 이벤트를 모으기 위한 일괄 처리 중첩 횟수
+        private int updateBatchDepth;
 
-        // 일괄 변경 작업이 끝난 뒤 이벤트를 전달할 영역 목록
-        private List<ZoneChangeData> pendingZoneUpdates =
+        // 일괄 작업이 끝난 뒤 전달할 영역 변경 목록
+        private readonly List<ZoneChangeData> pendingZoneUpdates =
             new List<ZoneChangeData>();
 
-        // 일괄 변경 이벤트에 전달할 플레이어와 영역 정보
+        // 영역 변경 이벤트에 전달할 데이터
         private struct ZoneChangeData
         {
             public PlayerGameData playerData;
@@ -37,12 +39,12 @@ namespace Manager
             }
         }
 
-        // 매니저 초기화 및 싱글톤 등록
+        // UI 등에서 카드 영역 변경을 구독할 때 사용하는 이벤트
+        public event Action<PlayerGameData, BattleEnums.CardZone> OnZoneChanged;
+
+        // 매니저와 서비스를 연결하고 기본 초기화를 진행
         protected override void Awake()
         {
-            base.Awake();
-
-            // 이미 다른 카드 영역 매니저가 존재하면 현재 오브젝트 제거
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -50,19 +52,102 @@ namespace Manager
             }
 
             Instance = this;
+
+            cardZoneService = new CardZoneService();
+            cardZoneService.ZoneChanged += HandleServiceZoneChanged;
+
+            base.Awake();
         }
 
-        // 오브젝트 삭제 시 싱글톤 인스턴스 정리
+        // 매니저가 제거될 때 서비스 이벤트 연결을 해제
         private void OnDestroy()
         {
-            // 현재 인스턴스가 싱글톤으로 등록된 객체일 때만 초기화
+            if (cardZoneService != null)
+            {
+                cardZoneService.ZoneChanged -= HandleServiceZoneChanged;
+            }
+
             if (Instance == this)
             {
                 Instance = null;
             }
         }
 
-        // 카드를 지정한 영역과 필드 슬롯으로 이동
+        #endregion
+
+        #region 영역 변경 이벤트 조율
+
+        // 서비스에서 전달한 영역 변경을 구독자에게 전달
+        private void HandleServiceZoneChanged(
+            PlayerGameData playerData,
+            BattleEnums.CardZone zone)
+        {
+            if (playerData == null)
+            {
+                return;
+            }
+
+            // 일괄 처리 중이면 같은 플레이어와 영역의 이벤트를 한 번만 저장
+            if (updateBatchDepth > 0)
+            {
+                for (int i = 0; i < pendingZoneUpdates.Count; i++)
+                {
+                    ZoneChangeData pendingData = pendingZoneUpdates[i];
+
+                    if (pendingData.playerData == playerData &&
+                        pendingData.zone == zone)
+                    {
+                        return;
+                    }
+                }
+
+                pendingZoneUpdates.Add(
+                    new ZoneChangeData(playerData, zone));
+
+                return;
+            }
+
+            OnZoneChanged?.Invoke(playerData, zone);
+        }
+
+        // 여러 카드 이동이 끝난 뒤 모아 둔 이벤트를 한 번씩 전달
+        private bool RunBatched(Func<bool> operation)
+        {
+            updateBatchDepth++;
+
+            try
+            {
+                return operation();
+            }
+            finally
+            {
+                updateBatchDepth--;
+
+                if (updateBatchDepth == 0)
+                {
+                    List<ZoneChangeData> changes =
+                        new List<ZoneChangeData>(pendingZoneUpdates);
+
+                    pendingZoneUpdates.Clear();
+
+                    for (int i = 0; i < changes.Count; i++)
+                    {
+                        OnZoneChanged?.Invoke(
+                            changes[i].playerData,
+                            changes[i].zone);
+                    }
+                }
+            }
+        }
+
+        // 현재 연결된 카드 영역 서비스
+        private CardZoneService Service => cardZoneService;
+
+        #endregion
+
+        #region 카드 이동 요청
+
+        // 카드 영역 이동 요청을 서비스에 전달
         public bool MoveCard(
             PlayerGameData playerGameData,
             CardRuntimeData card,
@@ -71,749 +156,93 @@ namespace Manager
                 BattleEnums.FieldPosition.None,
             int targetFieldSlotIndex = -1)
         {
-            // 플레이어 또는 카드 데이터가 없으면 이동 중단
-            if (playerGameData == null || card == null)
-            {
-                return false;
-            }
-
-            List<CardRuntimeData> targetList =
-                GetZoneList(playerGameData, targetZone);
-
-            // 이동할 영역의 목록이 존재하지 않으면 이동 중단
-            if (targetList == null)
-            {
-                return false;
-            }
-
-            // 필드로 이동할 때 위치와 슬롯 번호 확인
-            if (targetZone == BattleEnums.CardZone.Field)
-            {
-                if (targetFieldPosition == BattleEnums.FieldPosition.None ||
-                    targetFieldPosition == BattleEnums.FieldPosition.Error)
-                {
-                    Debug.LogWarning("MoveCard: 필드 위치가 올바르지 않습니다.");
-                    return false;
-                }
-
-                // 현재 프로토타입의 필드 슬롯은 각 위치별 0~3번으로 구성
-                if (targetFieldSlotIndex < 0 || targetFieldSlotIndex >= 4)
-                {
-                    Debug.LogWarning("MoveCard: 필드 슬롯 번호가 올바르지 않습니다.");
-                    return false;
-                }
-
-                // 같은 필드 위치와 슬롯을 다른 카드가 사용 중인지 확인
-                for (int i = 0; i < playerGameData.field.Count; i++)
-                {
-                    CardRuntimeData fieldCard = playerGameData.field[i];
-
-                    if (fieldCard == null || fieldCard == card)
-                    {
-                        continue;
-                    }
-
-                    if (fieldCard.fieldPosition == targetFieldPosition &&
-                        fieldCard.fieldSlotIndex == targetFieldSlotIndex)
-                    {
-                        Debug.LogWarning("MoveCard: 이미 사용 중인 필드 슬롯입니다.");
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                // 필드가 아닌 영역으로 이동할 때 필드 정보 초기화
-                targetFieldPosition = BattleEnums.FieldPosition.None;
-                targetFieldSlotIndex = -1;
-            }
-
-            // 카드가 이미 같은 영역에 있는 경우
-            if (card.currentZone == targetZone)
-            {
-                // 해당 영역의 목록에 카드가 실제로 등록되어 있는지 확인
-                if (!targetList.Contains(card))
-                {
-                    return false;
-                }
-
-                // 필드 위치 또는 슬롯 번호가 변경되었는지 확인
-                bool fieldPositionChanged =
-                    card.fieldPosition != targetFieldPosition ||
-                    card.fieldSlotIndex != targetFieldSlotIndex;
-
-                // 카드의 필드 위치와 슬롯 번호 갱신
-                card.fieldPosition = targetFieldPosition;
-                card.fieldSlotIndex = targetFieldSlotIndex;
-
-                // 필드 정보가 변경되었다면 UI 갱신 알림
-                if (fieldPositionChanged)
-                {
-                    NotifyZoneChanged(playerGameData, targetZone);
-                }
-
-                return true;
-            }
-
-            BattleEnums.CardZone previousZone =
-                card.currentZone;
-
-            List<CardRuntimeData> currentList =
-                GetZoneList(playerGameData, previousZone);
-
-            // 이동할 영역에 카드가 이미 등록되어 있다면 중복 이동 방지
-            if (targetList.Contains(card))
-            {
-                return false;
-            }
-
-            // 기존 영역에서 카드 제거
-            if (previousZone != BattleEnums.CardZone.None)
-            {
-                // 기존 영역 목록이 없거나 카드 제거에 실패하면 이동 중단
-                if (currentList == null || !currentList.Remove(card))
-                {
-                    Debug.LogWarning("MoveCard: 기존 영역에서 카드를 찾을 수 없습니다.");
-                    return false;
-                }
-            }
-
-            // 이동할 영역의 목록에 카드 추가
-            targetList.Add(card);
-
-            // 카드의 현재 영역과 필드 위치 및 슬롯 번호 갱신
-            card.currentZone = targetZone;
-            card.fieldPosition = targetFieldPosition;
-            card.fieldSlotIndex = targetFieldSlotIndex;
-
-            // 이전 영역이 존재한다면 이전 영역의 UI 갱신 알림
-            if (previousZone != BattleEnums.CardZone.None)
-            {
-                NotifyZoneChanged(playerGameData, previousZone);
-            }
-
-            // 이동한 영역의 UI 갱신 알림
-            NotifyZoneChanged(playerGameData, targetZone);
-
-            return true;
+            return Service != null &&
+                   Service.MoveCard(
+                       playerGameData,
+                       card,
+                       targetZone,
+                       targetFieldPosition,
+                       targetFieldSlotIndex);
         }
 
-        // 필드 카드를 같은 라인 안에서 이동하거나 서로 교환
+        // 필드 카드의 같은 라인 이동 또는 교환 요청을 서비스에 전달
         public bool MoveOrSwapFieldCard(
             PlayerGameData playerData,
             CardRuntimeData movingCard,
             BattleEnums.FieldPosition targetFieldPosition,
             int targetFieldSlotIndex)
         {
-            // 플레이어 또는 카드 목록이 없으면 이동 중단
-            if (playerData == null ||
-                playerData.field == null ||
-                movingCard == null)
-            {
-                return false;
-            }
-
-            // 이동할 카드가 필드에 등록되어 있는지 확인
-            if (movingCard.currentZone != BattleEnums.CardZone.Field ||
-                !playerData.field.Contains(movingCard))
-            {
-                Debug.LogWarning(
-                    "MoveOrSwapFieldCard: 이동할 카드가 필드에 없습니다.");
-
-                return false;
-            }
-
-            // 출발 위치가 올바른지 확인
-            if (movingCard.fieldPosition == BattleEnums.FieldPosition.None ||
-                movingCard.fieldPosition == BattleEnums.FieldPosition.Error)
-            {
-                Debug.LogWarning(
-                    "MoveOrSwapFieldCard: 기존 필드 위치가 올바르지 않습니다.");
-
-                return false;
-            }
-
-            // 도착 위치가 올바른지 확인
-            if (targetFieldPosition == BattleEnums.FieldPosition.None ||
-                targetFieldPosition == BattleEnums.FieldPosition.Error)
-            {
-                Debug.LogWarning(
-                    "MoveOrSwapFieldCard: 이동할 필드 위치가 올바르지 않습니다.");
-
-                return false;
-            }
-
-            // 이동할 슬롯 번호 확인
-            if (targetFieldSlotIndex < 0 || targetFieldSlotIndex >= 4)
-            {
-                Debug.LogWarning(
-                    "MoveOrSwapFieldCard: 이동할 슬롯 번호가 올바르지 않습니다.");
-
-                return false;
-            }
-
-            // 기존 위치와 다른 라인으로 이동하는 상황 차단
-            if (movingCard.fieldPosition != targetFieldPosition)
-            {
-                Debug.LogWarning(
-                    "MoveOrSwapFieldCard: 서로 다른 필드 라인으로 이동할 수 없습니다.");
-
-                return false;
-            }
-
-            // 현재 카드의 출발 위치 저장
-            BattleEnums.FieldPosition originalFieldPosition =
-                movingCard.fieldPosition;
-
-            int originalSlotIndex =
-                movingCard.fieldSlotIndex;
-
-            // 같은 슬롯을 대상으로 했다면 변경할 필요 없음
-            if (originalSlotIndex == targetFieldSlotIndex)
-            {
-                return true;
-            }
-
-            CardRuntimeData targetCard = null;
-
-            // 도착 슬롯을 사용 중인 카드 검색
-            for (int i = 0; i < playerData.field.Count; i++)
-            {
-                CardRuntimeData fieldCard = playerData.field[i];
-
-                // 잘못된 카드 데이터는 검색에서 제외
-                if (fieldCard == null || fieldCard == movingCard)
-                {
-                    continue;
-                }
-
-                // 같은 라인의 도착 슬롯을 사용 중인 카드 확인
-                if (fieldCard.fieldPosition == targetFieldPosition &&
-                    fieldCard.fieldSlotIndex == targetFieldSlotIndex)
-                {
-                    targetCard = fieldCard;
-                    break;
-                }
-            }
-
-            // 도착 슬롯에 카드가 있는 경우 서로 위치 교환
-            if (targetCard != null)
-            {
-                // 도착 카드가 필드에 정상 등록되어 있는지 확인
-                if (targetCard.currentZone != BattleEnums.CardZone.Field ||
-                    !playerData.field.Contains(targetCard))
-                {
-                    Debug.LogWarning(
-                        "MoveOrSwapFieldCard: 교환 대상 카드 데이터가 올바르지 않습니다.");
-
-                    return false;
-                }
-
-                // 이동 카드에 도착 슬롯 정보 적용
-                movingCard.fieldPosition = targetFieldPosition;
-                movingCard.fieldSlotIndex = targetFieldSlotIndex;
-
-                // 도착 카드에 기존 카드의 슬롯 정보 적용
-                targetCard.fieldPosition = originalFieldPosition;
-                targetCard.fieldSlotIndex = originalSlotIndex;
-            }
-            else
-            {
-                // 도착 슬롯이 비어 있으면 이동 카드의 위치만 변경
-                movingCard.fieldPosition = targetFieldPosition;
-                movingCard.fieldSlotIndex = targetFieldSlotIndex;
-            }
-
-            // 필드 영역 UI 갱신 알림
-            NotifyZoneChanged(
-                playerData,
-                BattleEnums.CardZone.Field);
-
-            return true;
+            return Service != null &&
+                   Service.MoveOrSwapFieldCard(
+                       playerData,
+                       movingCard,
+                       targetFieldPosition,
+                       targetFieldSlotIndex);
         }
 
-        // 손패 카드의 순서 변경
+        // 손패 카드 순서 변경 요청을 서비스에 전달
         public bool ReorderHand(
             PlayerGameData playerData,
             int fromIndex,
             int toIndex)
         {
-            // 플레이어 또는 손패 목록이 없으면 순서 변경 중단
-            if (playerData == null || playerData.hand == null)
-            {
-                Debug.LogError(
-                    "ReorderHand: 플레이어 또는 손패 데이터가 없습니다.");
-
-                return false;
-            }
-
-            // 기존 카드 위치가 손패 범위를 벗어나면 중단
-            if (fromIndex < 0 || fromIndex >= playerData.hand.Count)
-            {
-                Debug.LogError(
-                    "ReorderHand: 기존 카드 위치가 올바르지 않습니다.");
-
-                return false;
-            }
-
-            // 이동할 위치가 손패 범위를 벗어나면 중단
-            if (toIndex < 0 || toIndex >= playerData.hand.Count)
-            {
-                Debug.LogError(
-                    "ReorderHand: 이동할 카드 위치가 올바르지 않습니다.");
-
-                return false;
-            }
-
-            // 같은 위치라면 변경할 필요 없음
-            if (fromIndex == toIndex)
-            {
-                return true;
-            }
-
-            CardRuntimeData movingCard =
-                playerData.hand[fromIndex];
-
-            // 이동할 카드가 실제 손패 카드인지 확인
-            if (movingCard == null ||
-                movingCard.currentZone != BattleEnums.CardZone.Hand)
-            {
-                Debug.LogError(
-                    "ReorderHand: 이동할 카드가 손패에 등록되어 있지 않습니다.");
-
-                return false;
-            }
-
-            // 손패 목록에서 기존 위치의 카드 제거
-            playerData.hand.RemoveAt(fromIndex);
-
-            // 변경할 위치에 카드 삽입
-            playerData.hand.Insert(toIndex, movingCard);
-
-            // 손패 영역 변경 이벤트 전달
-            NotifyZoneChanged(
-                playerData,
-                BattleEnums.CardZone.Hand);
-
-            return true;
+            return Service != null &&
+                   Service.ReorderHand(
+                       playerData,
+                       fromIndex,
+                       toIndex);
         }
 
-        // 카드 영역 변경 이벤트를 발생시키거나 일괄 처리 목록에 추가
-        private void NotifyZoneChanged(
-            PlayerGameData playerData,
-            BattleEnums.CardZone changedZone)
-        {
-            // 플레이어 데이터가 없으면 이벤트 처리 중단
-            if (playerData == null)
-            {
-                return;
-            }
+        #endregion
 
-            // 일괄 처리 중이면 즉시 이벤트를 발생시키지 않음
-            if (zoneUpdateBatchDepth > 0)
-            {
-                // 같은 플레이어와 영역이 이미 등록되어 있는지 확인
-                for (int i = 0; i < pendingZoneUpdates.Count; i++)
-                {
-                    ZoneChangeData pendingData =
-                        pendingZoneUpdates[i];
+        #region 드로우·시큐리티·덱 요청
 
-                    if (pendingData.playerData == playerData &&
-                        pendingData.zone == changedZone)
-                    {
-                        return;
-                    }
-                }
-
-                // 작업 종료 후 이벤트를 전달할 영역 추가
-                pendingZoneUpdates.Add(
-                    new ZoneChangeData(playerData, changedZone));
-
-                return;
-            }
-
-            // 이벤트를 구독한 객체에 영역 변경 알림
-            OnZoneChanged?.Invoke(playerData, changedZone);
-        }
-
-        // 카드 영역 일괄 변경 작업 시작
-        private void BeginZoneUpdateBatch()
-        {
-            zoneUpdateBatchDepth++;
-        }
-
-        // 카드 영역 일괄 변경 작업 종료 및 대기 중인 이벤트 전달
-        private void EndZoneUpdateBatch()
-        {
-            // 시작하지 않은 일괄 작업을 종료하는 상황 방지
-            if (zoneUpdateBatchDepth <= 0)
-            {
-                Debug.LogError(
-                    "EndZoneUpdateBatch: 일괄 변경 작업 횟수가 올바르지 않습니다.");
-
-                zoneUpdateBatchDepth = 0;
-                return;
-            }
-
-            // 일괄 변경 작업 중첩 횟수 감소
-            zoneUpdateBatchDepth--;
-
-            // 아직 다른 일괄 작업이 진행 중이면 이벤트 전달 보류
-            if (zoneUpdateBatchDepth > 0)
-            {
-                return;
-            }
-
-            // 이벤트 전달 대상 목록 복사
-            List<ZoneChangeData> updatedZones =
-                new List<ZoneChangeData>(pendingZoneUpdates);
-
-            // 이벤트 전달 전에 대기 목록 초기화
-            pendingZoneUpdates.Clear();
-
-            // 변경된 플레이어와 영역마다 이벤트 한 번씩 발생
-            for (int i = 0; i < updatedZones.Count; i++)
-            {
-                ZoneChangeData changeData = updatedZones[i];
-
-                OnZoneChanged?.Invoke(
-                    changeData.playerData,
-                    changeData.zone);
-            }
-        }
-
-        // 덱 맨 위 카드 1장을 손패로 이동
+        // 덱 맨 위 카드 한 장을 손패로 옮기도록 요청
         public bool DrawOneCard(PlayerGameData playerData)
         {
-            // 플레이어 또는 카드 목록이 없으면 드로우 중단
-            if (playerData == null ||
-                playerData.deck == null ||
-                playerData.hand == null)
-            {
-                return false;
-            }
-
-            // 덱에 카드가 없는 경우 드로우 중단
-            if (playerData.deck.Count == 0)
-            {
-                return false;
-            }
-
-            CardRuntimeData topCard =
-                playerData.deck[0];
-
-            // 카드가 없거나 덱 영역에 등록되지 않은 경우 중단
-            if (topCard == null ||
-                topCard.currentZone != BattleEnums.CardZone.Deck)
-            {
-                return false;
-            }
-
-            // 덱에서 손패 영역으로 카드 1장 이동
-            return MoveCard(
-                playerData,
-                topCard,
-                BattleEnums.CardZone.Hand);
+            return Service != null &&
+                   Service.DrawOneCard(playerData);
         }
 
-        // 지정한 수량만큼 카드를 드로우
+        // 지정한 수량만큼 카드를 뽑고 영역 변경 이벤트를 모아서 전달
         public bool DrawCards(PlayerGameData playerData, int count)
         {
-            // 플레이어 또는 카드 목록이 없으면 드로우 중단
-            if (playerData == null ||
-                playerData.deck == null ||
-                playerData.hand == null)
-            {
-                return false;
-            }
-
-            // 드로우 수량 확인
-            if (count <= 0)
-            {
-                Debug.LogError(
-                    "DrawCards: 드로우 수량은 1 이상이어야 합니다.");
-
-                return false;
-            }
-
-            // 드로우할 카드가 충분한지 먼저 확인
-            if (playerData.deck.Count < count)
-            {
-                Debug.LogWarning(
-                    "DrawCards: 덱에 드로우할 카드가 부족합니다.");
-
-                return false;
-            }
-
-            // 여러 장의 드로우를 하나의 영역 변경 작업으로 시작
-            BeginZoneUpdateBatch();
-
-            try
-            {
-                // 지정한 수량만큼 1장 드로우 함수를 반복 호출
-                for (int i = 0; i < count; i++)
-                {
-                    // 드로우 중 하나라도 실패하면 작업 중단
-                    if (!DrawOneCard(playerData))
-                    {
-                        Debug.LogError(
-                            $"DrawCards: {i + 1}번째 카드 드로우에 실패했습니다.");
-
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            finally
-            {
-                // 성공 또는 실패와 관계없이 일괄 변경 작업 종료
-                EndZoneUpdateBatch();
-            }
+            return Service != null &&
+                   RunBatched(() => Service.DrawCards(playerData, count));
         }
 
-        // 손패 7장을 현재 순서 그대로 덱 맨 아래로 이동
+        // 손패를 덱 맨 아래로 옮기고 영역 변경 이벤트를 모아서 전달
         public bool ReturnHandToDeckBottom(PlayerGameData playerData)
         {
-            // 플레이어 또는 카드 목록이 없으면 이동 중단
-            if (playerData == null ||
-                playerData.hand == null ||
-                playerData.deck == null)
-            {
-                return false;
-            }
-
-            // 손패가 정확히 7장인지 확인
-            if (playerData.hand.Count != 7)
-            {
-                Debug.LogError(
-                    "ReturnHandToDeckBottom: 손패가 7장이 아닙니다.");
-
-                return false;
-            }
-
-            // 이동 전에 모든 카드 데이터 검증
-            for (int i = 0; i < playerData.hand.Count; i++)
-            {
-                CardRuntimeData card =
-                    playerData.hand[i];
-
-                // 카드가 없거나 손패 영역에 없거나 덱에 중복 등록된 경우 중단
-                if (card == null ||
-                    card.currentZone != BattleEnums.CardZone.Hand ||
-                    playerData.deck.Contains(card))
-                {
-                    Debug.LogError(
-                        "ReturnHandToDeckBottom: 손패에 잘못된 카드가 있습니다.");
-
-                    return false;
-                }
-            }
-
-            // 손패 전체 이동을 하나의 영역 변경 작업으로 시작
-            BeginZoneUpdateBatch();
-
-            try
-            {
-                // 손패의 첫 번째 카드를 반복해서 덱 맨 아래에 추가
-                while (playerData.hand.Count > 0)
-                {
-                    CardRuntimeData card =
-                        playerData.hand[0];
-
-                    // 카드 이동에 실패하면 작업 중단
-                    if (!MoveCard(
-                        playerData,
-                        card,
-                        BattleEnums.CardZone.Deck))
-                    {
-                        Debug.LogError(
-                            "ReturnHandToDeckBottom: 카드 이동에 실패했습니다.");
-
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            finally
-            {
-                // 성공 또는 실패와 관계없이 일괄 변경 작업 종료
-                EndZoneUpdateBatch();
-            }
+            return Service != null &&
+                   RunBatched(
+                       () => Service.ReturnHandToDeckBottom(playerData));
         }
 
-        // 덱 맨 위 카드 1장을 시큐리티로 이동
+        // 덱 맨 위 카드 한 장을 시큐리티로 옮기도록 요청
         public bool MoveTopCardToSecurity(PlayerGameData playerData)
         {
-            // 플레이어 또는 카드 목록이 없으면 이동 중단
-            if (playerData == null ||
-                playerData.deck == null ||
-                playerData.security == null)
-            {
-                return false;
-            }
-
-            // 덱에 카드가 없는 경우 이동 중단
-            if (playerData.deck.Count == 0)
-            {
-                return false;
-            }
-
-            CardRuntimeData topCard =
-                playerData.deck[0];
-
-            // 카드가 없거나 덱 영역에 등록되지 않은 경우 중단
-            if (topCard == null ||
-                topCard.currentZone != BattleEnums.CardZone.Deck)
-            {
-                return false;
-            }
-
-            // 카드 1장을 시큐리티로 이동
-            return MoveCard(
-                playerData,
-                topCard,
-                BattleEnums.CardZone.Security);
+            return Service != null &&
+                   Service.MoveTopCardToSecurity(playerData);
         }
 
-        // 덱 맨 위에서 지정한 수량만큼 시큐리티로 이동
+        // 지정한 수량만큼 시큐리티로 옮기고 영역 변경 이벤트를 모아서 전달
         public bool MoveCardsToSecurity(
             PlayerGameData playerData,
             int count)
         {
-            // 플레이어 또는 카드 목록이 없으면 이동 중단
-            if (playerData == null ||
-                playerData.deck == null ||
-                playerData.security == null)
-            {
-                return false;
-            }
-
-            // 이동 수량 확인
-            if (count <= 0)
-            {
-                Debug.LogError(
-                    "MoveCardsToSecurity: 수량은 1 이상이어야 합니다.");
-
-                return false;
-            }
-
-            // 이동할 카드가 충분한지 먼저 확인
-            if (playerData.deck.Count < count)
-            {
-                Debug.LogWarning(
-                    "MoveCardsToSecurity: 덱에 카드가 부족합니다.");
-
-                return false;
-            }
-
-            // 여러 장의 시큐리티 이동을 하나의 영역 변경 작업으로 시작
-            BeginZoneUpdateBatch();
-
-            try
-            {
-                // 지정한 수량만큼 1장 이동 함수를 반복 호출
-                for (int i = 0; i < count; i++)
-                {
-                    // 카드 이동 중 하나라도 실패하면 작업 중단
-                    if (!MoveTopCardToSecurity(playerData))
-                    {
-                        Debug.LogError(
-                            $"MoveCardsToSecurity: {i + 1}번째 카드 이동에 실패했습니다.");
-
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            finally
-            {
-                // 성공 또는 실패와 관계없이 일괄 변경 작업 종료
-                EndZoneUpdateBatch();
-            }
+            return Service != null &&
+                   RunBatched(
+                       () => Service.MoveCardsToSecurity(playerData, count));
         }
 
-        // 덱에 있는 카드의 순서를 무작위로 변경
+        // 덱 순서를 섞도록 요청
         public bool ShuffleDeck(PlayerGameData playerGameData)
         {
-            // 플레이어 또는 덱 목록이 없으면 셔플 중단
-            if (playerGameData == null ||
-                playerGameData.deck == null)
-            {
-                return false;
-            }
-
-            // 카드가 2장 미만이면 셔플할 수 없음
-            if (playerGameData.deck.Count < 2)
-            {
-                return false;
-            }
-
-            // 덱에 잘못된 카드 데이터가 있는지 확인
-            for (int i = 0; i < playerGameData.deck.Count; i++)
-            {
-                // 카드가 없거나 덱 영역에 등록되지 않은 경우 중단
-                if (playerGameData.deck[i] == null ||
-                    playerGameData.deck[i].currentZone != BattleEnums.CardZone.Deck)
-                {
-                    return false;
-                }
-            }
-
-            // Fisher-Yates 알고리즘으로 덱 순서 변경
-            for (int i = playerGameData.deck.Count - 1; i > 0; i--)
-            {
-                int randomIndex =
-                    UnityEngine.Random.Range(0, i + 1);
-
-                CardRuntimeData temp =
-                    playerGameData.deck[i];
-
-                playerGameData.deck[i] =
-                    playerGameData.deck[randomIndex];
-
-                playerGameData.deck[randomIndex] = temp;
-            }
-
-            return true;
+            return Service != null &&
+                   Service.ShuffleDeck(playerGameData);
         }
 
-        // 지정한 영역의 카드 리스트 반환
-        private List<CardRuntimeData> GetZoneList(
-            PlayerGameData playerData,
-            BattleEnums.CardZone zone)
-        {
-            // 플레이어 데이터가 없으면 목록 반환 불가
-            if (playerData == null)
-            {
-                return null;
-            }
-
-            switch (zone)
-            {
-                case BattleEnums.CardZone.Deck:
-                    return playerData.deck;
-
-                case BattleEnums.CardZone.Hand:
-                    return playerData.hand;
-
-                case BattleEnums.CardZone.Security:
-                    return playerData.security;
-
-                case BattleEnums.CardZone.Field:
-                    return playerData.field;
-
-                case BattleEnums.CardZone.Trash:
-                    return playerData.trash;
-
-                case BattleEnums.CardZone.Remove:
-                    return playerData.remove;
-
-                default:
-                    return null;
-            }
-        }
+        #endregion
     }
 }

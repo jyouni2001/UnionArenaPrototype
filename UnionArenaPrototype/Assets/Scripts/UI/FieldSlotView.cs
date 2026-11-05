@@ -4,17 +4,26 @@ using Battle;
 
 namespace UI
 {
-    // 필드 슬롯의 카드 표시와 드롭 입력을 관리하는 클래스
+    // 필드 슬롯의 카드 표시와 드래그·드롭 입력을 관리
     public class FieldSlotView : MonoBehaviour, IDropHandler
     {
+        #region 슬롯 설정
+
         [Header("슬롯 위치")]
-        [SerializeField] private Enums.BattleEnums.FieldPosition fieldPosition; // FrontLine 또는 EnergyLine
+        [SerializeField]
+        private Enums.BattleEnums.FieldPosition fieldPosition;
 
         [Header("슬롯 번호")]
-        [SerializeField] private int slotIndex = -1; // 슬롯 번호
+        [SerializeField]
+        private int slotIndex = -1;
 
         [Header("슬롯에 표시할 카드 UI")]
-        [SerializeField] private CardView fieldCardView; // 슬롯에 표시할 카드 UI
+        [SerializeField]
+        private CardView fieldCardView;
+
+        #endregion
+
+        #region 슬롯 정보
 
         // 슬롯의 필드 위치 반환
         public Enums.BattleEnums.FieldPosition GetFieldPosition()
@@ -35,6 +44,10 @@ namespace UI
                    fieldCardView.gameObject.activeSelf;
         }
 
+        #endregion
+
+        #region 카드 표시
+
         // 필드 슬롯에 카드 표시
         public void ShowCard(CardRuntimeData card)
         {
@@ -52,11 +65,17 @@ namespace UI
                 return;
             }
 
-            fieldCardView.SetCard(card.cardData.CardID); // 카드 이미지 설정
-            fieldCardView.gameObject.SetActive(true); // 카드 UI 활성화
+            fieldCardView.SetCard(card.cardData.CardID);
+
+            // HandView의 드래그 처리를 이 필드 카드 UI에 연결
+            HandView.RegisterFieldCardDragEvents(
+                fieldCardView,
+                this);
+
+            fieldCardView.gameObject.SetActive(true);
         }
 
-        // 필드 슬롯의 카드 표시 제거
+        // 필드 슬롯의 카드 표시와 드래그 이벤트 연결 제거
         public void ClearCard()
         {
             if (fieldCardView == null)
@@ -64,26 +83,26 @@ namespace UI
                 return;
             }
 
-            fieldCardView.gameObject.SetActive(false); // 카드 UI 비활성화
+            fieldCardView.SetDragEvents(null, null, null);
+            fieldCardView.gameObject.SetActive(false);
         }
 
-        // 다른 UI에서 드래그한 카드가 슬롯 위에 놓였을 때 호출
+        #endregion
+
+        #region 드롭 입력
+
+        // 드래그한 카드를 이 슬롯에 놓았을 때 호출
         public void OnDrop(PointerEventData eventData)
         {
-            // 드래그 이벤트 데이터가 없으면 처리 중단
             if (eventData == null)
             {
                 return;
             }
 
-            // 이미 카드가 표시된 슬롯이면 배치 요청 중단
-            if (HasCard())
-            {
-                return;
-            }
-
-            // 손패의 드래그 카드가 현재 슬롯에 배치되도록 요청
+            // 슬롯이 차 있어도 요청을 전달해야 같은 라인 카드 교환이 가능
             HandView.TryDropOnFieldSlot(this);
         }
+
+        #endregion
     }
 }
