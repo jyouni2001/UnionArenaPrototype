@@ -445,6 +445,12 @@ namespace UI
                     return false;
                 }
 
+                if (BattleManager.Instance.CurrentTurnPhase != Enums.BattleEnums.TurnPhase.Main)
+                {
+                    Debug.LogWarning("HandView: 손패 카드는 메인 페이즈에만 필드로 배치할 수 있습니다.");
+                    return false;
+                }
+
                 // 카드의 에너지 조건을 확인
                 if (!EnergyRuleService.HasEnoughEnergy(playerData, card.cardData, out string energyError))
                 {
@@ -668,3 +674,4 @@ namespace UI
         #endregion
     }
 }
+

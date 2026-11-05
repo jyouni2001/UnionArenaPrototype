@@ -29,6 +29,8 @@ namespace Manager
         private bool isWaitingForInitialHandChoice; // 최초 손패 선택 대기 여부
         private bool isRunningOpponentTurn; // 상대 AI 턴 진행 여부
         private bool isEndPhaseProcessed; // 엔드 페이즈 처리 여부
+        private bool isEndFieldActivationProcessed; // 엔드 페이즈 필드 활성화 처리 여부
+        private bool isWaitingForHandLimitSelection; // 손패 제외 선택 대기 여부
         private bool isGameOver; // 게임 종료 여부
 
         private BattleSetupService battleSetupService; // 덱과 최초 손패 준비 서비스
@@ -49,11 +51,13 @@ namespace Manager
         public bool IsWaitingForBlock => battleCombatService != null && battleCombatService.IsWaitingForBlock; // 블록 대기 여부
         public bool IsRunningOpponentTurn => isRunningOpponentTurn; // 상대 AI 턴 진행 여부
         public bool IsGameOver => isGameOver; // 게임 종료 여부
+        public bool IsWaitingForHandLimitSelection => isWaitingForHandLimitSelection; // 손패 제외 선택 대기 여부
 
         public event Action<PlayerGameData> OnCombatFieldChanged; // 전투 카드 상태 변경 알림
         public event Action<CardRuntimeData> OnBlockChoiceRequested; // 블록 선택 UI 요청
         public event Action<PlayerGameData, PlayerGameData> OnGameEnded; // 승패 확정 알림
         public event Action<BattleEnums.TurnPhase> OnTurnPhaseChanged; // 턴 페이즈 변경 알림
+        public event Action<IReadOnlyList<CardRuntimeData>, int> OnHandLimitSelectionRequested; // 손패 제외 선택 UI 요청
 
         #endregion
 
@@ -104,6 +108,8 @@ namespace Manager
             isWaitingForInitialHandChoice = false;
             isRunningOpponentTurn = false;
             isEndPhaseProcessed = false;
+            isEndFieldActivationProcessed = false;
+            isWaitingForHandLimitSelection = false;
             isGameOver = false;
             battleSetupService = null;
             turnFlowService = null;
@@ -396,6 +402,12 @@ namespace Manager
                 return false;
             }
 
+            if (attackerPlayer == localPlayerData && currentTurnPhase != BattleEnums.TurnPhase.Battle)
+            {
+                errorMessage = "내 카드는 배틀 페이즈에만 공격할 수 있습니다.";
+                return false;
+            }
+
             PlayerGameData defenderPlayer = attackerPlayer == localPlayerData ? opponentPlayerData : localPlayerData;
 
             if (!battleCombatService.TryDeclareAttack(attackerPlayer, defenderPlayer, attacker, out errorMessage))
@@ -583,6 +595,8 @@ namespace Manager
 
             currentTurnPlayer = playerData;
             isEndPhaseProcessed = false;
+            isEndFieldActivationProcessed = false;
+            isWaitingForHandLimitSelection = false;
             SetTurnPhase(BattleEnums.TurnPhase.Start);
 
             Debug.Log($"BattleManager: 턴 시작. 플레이어 인덱스 = {playerData.playerIndex}, 턴 = {playerData.turnCount}, 활성 AP = {playerData.activeAP}");
@@ -624,7 +638,7 @@ namespace Manager
         {
             errorMessage = string.Empty;
 
-            if (isGameOver || isWaitingForInitialHandChoice || IsWaitingForBlock)
+            if (isGameOver || isWaitingForInitialHandChoice || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 errorMessage = "현재 상태에서는 필드 카드를 이동할 수 없습니다.";
                 return false;
@@ -684,10 +698,78 @@ namespace Manager
             return true;
         }
 
+        // 내가 선택한 손패 카드를 제외존으로 보내고 엔드 페이즈를 마침
+        public bool TryCompleteLocalHandLimitSelection(IReadOnlyList<CardRuntimeData> selectedCards, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (isGameOver || !isWaitingForHandLimitSelection || currentTurnPlayer != localPlayerData || localPlayerData == null || localPlayerData.hand == null || turnFlowService == null)
+            {
+                errorMessage = "손패 제외 선택을 기다리는 상태가 아닙니다.";
+                return false;
+            }
+
+            int requiredRemoveCount = Mathf.Max(0, localPlayerData.hand.Count - 8);
+
+            if (selectedCards == null || selectedCards.Count != requiredRemoveCount)
+            {
+                errorMessage = $"제외할 카드를 {requiredRemoveCount}장 선택해야 합니다.";
+                return false;
+            }
+
+            if (!turnFlowService.MoveSelectedHandCardsToRemove(localPlayerData, selectedCards, out errorMessage))
+            {
+                return false;
+            }
+
+            isWaitingForHandLimitSelection = false;
+            isEndPhaseProcessed = true;
+            SetTurnPhase(BattleEnums.TurnPhase.End);
+            Debug.Log($"BattleManager: 손패 제한 처리 완료. 현재 손패 = {localPlayerData.hand.Count}");
+            return true;
+        }
+
         // 내 턴의 다음 페이즈로 이동
         public bool AdvanceTurnPhase()
         {
-            if (isGameOver || currentTurnPlayer != localPlayerData || isWaitingForInitialHandChoice || IsWaitingForBlock)
+            if (isGameOver || currentTurnPlayer != localPlayerData || isWaitingForInitialHandChoice || IsWaitingForBlock || isWaitingForHandLimitSelection)
+            {
+                return false;
+            }
+
+            switch (currentTurnPhase)
+            {
+                case BattleEnums.TurnPhase.Start:
+                    SetTurnPhase(BattleEnums.TurnPhase.ExtraDraw);
+                    return true;
+
+                case BattleEnums.TurnPhase.ExtraDraw:
+                    SetTurnPhase(BattleEnums.TurnPhase.Move);
+                    return true;
+
+                case BattleEnums.TurnPhase.Move:
+                    SetTurnPhase(BattleEnums.TurnPhase.Main);
+                    return true;
+
+                case BattleEnums.TurnPhase.Main:
+                    SetTurnPhase(BattleEnums.TurnPhase.Battle);
+                    return true;
+
+                case BattleEnums.TurnPhase.Battle:
+                    return ProcessEndPhase();
+
+                case BattleEnums.TurnPhase.End:
+                    return StartNextPlayerTurn();
+
+                default:
+                    return false;
+            }
+        }
+
+        // 상대 AI 턴을 현재 페이즈 순서에 맞춰 진행
+        public bool AdvanceOpponentTurnPhase()
+        {
+            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 return false;
             }
@@ -731,6 +813,11 @@ namespace Manager
         // 엔드 페이즈 필드 활성화를 처리하고 End 페이즈로 전환
         private bool ProcessEndPhase()
         {
+            if (isWaitingForHandLimitSelection)
+            {
+                return true;
+            }
+
             if (isEndPhaseProcessed)
             {
                 SetTurnPhase(BattleEnums.TurnPhase.End);
@@ -743,10 +830,33 @@ namespace Manager
                 return false;
             }
 
-            if (!turnFlowService.EndTurn(currentTurnPlayer, out string errorMessage))
+            if (!isEndFieldActivationProcessed)
             {
-                Debug.LogError("BattleManager: 엔드 페이즈 처리에 실패했습니다. " + errorMessage);
-                return false;
+                if (!turnFlowService.EndTurn(currentTurnPlayer, out string errorMessage))
+                {
+                    Debug.LogError("BattleManager: 엔드 페이즈 처리에 실패했습니다. " + errorMessage);
+                    return false;
+                }
+
+                isEndFieldActivationProcessed = true;
+            }
+
+            if (currentTurnPlayer == localPlayerData && localPlayerData.hand != null && localPlayerData.hand.Count > 8)
+            {
+                isWaitingForHandLimitSelection = true;
+                int removeCount = localPlayerData.hand.Count - 8;
+                OnHandLimitSelectionRequested?.Invoke(new List<CardRuntimeData>(localPlayerData.hand), removeCount);
+                Debug.Log($"BattleManager: 손패 제한 선택 대기. 제외할 카드 = {removeCount}장");
+                return true;
+            }
+
+            if (currentTurnPlayer == opponentPlayerData && opponentPlayerData.hand != null && opponentPlayerData.hand.Count > 8)
+            {
+                if (!turnFlowService.MoveExcessHandCardsToRemove(opponentPlayerData, out string errorMessage))
+                {
+                    Debug.LogError("BattleManager: AI 손패 제한 처리에 실패했습니다. " + errorMessage);
+                    return false;
+                }
             }
 
             isEndPhaseProcessed = true;
@@ -780,7 +890,7 @@ namespace Manager
         // 상대 AI가 현재 턴을 종료하고 다음 플레이어 턴으로 넘김
         public bool EndCurrentTurn()
         {
-            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock)
+            if (isGameOver || currentTurnPlayer != opponentPlayerData || !isRunningOpponentTurn || IsWaitingForBlock || isWaitingForHandLimitSelection)
             {
                 Debug.LogWarning("BattleManager: 종료할 수 있는 상대 턴이 없습니다.");
                 return false;

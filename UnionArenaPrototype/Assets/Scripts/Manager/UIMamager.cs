@@ -55,6 +55,9 @@ namespace Manager
         [SerializeField] private Button extraDrawButton; // 엑스트라 드로우 실행 버튼
         [SerializeField] private Button passExtraDrawButton; // 엑스트라 드로우 패스 버튼
 
+        [Header("손패 제한 선택 UI")]
+        [SerializeField] private UI.HandLimitSelectionView handLimitSelectionView; // 손패 초과 카드 선택 패널
+
         [Header("현재 페이즈 UI")]
         [SerializeField] private Text turnPhaseText; // 현재 턴 페이즈 Text
 
@@ -135,6 +138,11 @@ namespace Manager
                 gameOverPanel.SetActive(false);
             }
 
+            if (handLimitSelectionView != null)
+            {
+                handLimitSelectionView.Hide();
+            }
+
             if (CardZoneManager.Instance != null)
             {
                 CardZoneManager.Instance.OnZoneChanged += HandleZoneChanged;
@@ -150,6 +158,7 @@ namespace Manager
                 BattleManager.Instance.OnCombatFieldChanged += HandleCombatFieldChanged;
                 BattleManager.Instance.OnGameEnded += HandleGameEnded;
                 BattleManager.Instance.OnTurnPhaseChanged += HandleTurnPhaseChanged;
+                BattleManager.Instance.OnHandLimitSelectionRequested += HandleHandLimitSelectionRequested;
                 HandleTurnPhaseChanged(BattleManager.Instance.CurrentTurnPhase);
             }
 
@@ -207,6 +216,7 @@ namespace Manager
                 BattleManager.Instance.OnCombatFieldChanged -= HandleCombatFieldChanged;
                 BattleManager.Instance.OnGameEnded -= HandleGameEnded;
                 BattleManager.Instance.OnTurnPhaseChanged -= HandleTurnPhaseChanged;
+                BattleManager.Instance.OnHandLimitSelectionRequested -= HandleHandLimitSelectionRequested;
             }
 
             if (Instance == this)
@@ -275,6 +285,46 @@ namespace Manager
             }
         }
 
+        // 손패 초과 카드 선택 패널을 표시
+        private void HandleHandLimitSelectionRequested(IReadOnlyList<CardRuntimeData> handCards, int removeCount)
+        {
+            if (handLimitSelectionView == null)
+            {
+                Debug.LogError("UIManager: HandLimitSelectionView가 연결되지 않았습니다.");
+                return;
+            }
+
+            if (endTurnButton != null)
+            {
+                endTurnButton.interactable = false;
+            }
+
+            if (!handLimitSelectionView.Show(handCards, removeCount, HandleHandLimitSelectionConfirmed))
+            {
+                Debug.LogError("UIManager: 손패 제한 선택 패널을 표시하지 못했습니다.");
+            }
+        }
+
+        // 플레이어가 선택한 손패 카드를 제외존으로 보내도록 요청
+        private bool HandleHandLimitSelectionConfirmed(IReadOnlyList<CardRuntimeData> selectedCards)
+        {
+            if (BattleManager.Instance == null)
+            {
+                Debug.LogWarning("UIManager: BattleManager를 찾을 수 없어 손패 제한 처리를 완료하지 못했습니다.");
+                return false;
+            }
+
+            if (!BattleManager.Instance.TryCompleteLocalHandLimitSelection(selectedCards, out string errorMessage))
+            {
+                Debug.LogWarning("UIManager: 손패 제한 처리 실패. " + errorMessage);
+                return false;
+            }
+
+            RefreshPlayerHand();
+            RefreshAllZoneCounts();
+            return true;
+        }
+
         // 현재 플레이어와 페이즈를 화면에 표시
         private void HandleTurnPhaseChanged(BattleEnums.TurnPhase phase)
         {
@@ -338,7 +388,8 @@ namespace Manager
 
             if (endTurnButton != null)
             {
-                endTurnButton.interactable = !isLocalExtraDrawPhase && !BattleManager.Instance.IsGameOver;
+                bool isLocalTurn = BattleManager.Instance.CurrentTurnPlayer == BattleManager.Instance.LocalPlayerData;
+                endTurnButton.interactable = isLocalTurn && !isLocalExtraDrawPhase && !BattleManager.Instance.IsWaitingForHandLimitSelection && !BattleManager.Instance.IsGameOver;
             }
         }
 
@@ -426,6 +477,11 @@ namespace Manager
             if (blockChoiceView != null)
             {
                 blockChoiceView.Hide();
+            }
+
+            if (handLimitSelectionView != null)
+            {
+                handLimitSelectionView.Hide();
             }
 
             Debug.Log("UIManager: 게임 종료 화면을 표시합니다.");
@@ -903,5 +959,9 @@ namespace Manager
         #endregion
     }
 }
+
+
+
+
 
 

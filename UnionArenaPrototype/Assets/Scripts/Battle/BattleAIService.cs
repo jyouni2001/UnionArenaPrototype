@@ -39,10 +39,35 @@ namespace Battle
                 yield break;
             }
 
+            // 시작 페이즈에서 엑스트라 드로우와 이동 페이즈를 거쳐 메인 페이즈로 이동
+            if (!battleManager.AdvanceOpponentTurnPhase())
+            {
+                Debug.LogWarning("BattleAIService: 시작 페이즈를 진행하지 못했습니다.");
+                yield break;
+            }
+
+            yield return new WaitForSeconds(ActionDelay);
+
+            if (!battleManager.AdvanceOpponentTurnPhase() || !battleManager.AdvanceOpponentTurnPhase())
+            {
+                Debug.LogWarning("BattleAIService: 메인 페이즈로 이동하지 못했습니다.");
+                yield break;
+            }
+
+            yield return new WaitForSeconds(ActionDelay);
+
             while (TryPlayLowestCostCard(opponent))
             {
                 yield return new WaitForSeconds(ActionDelay);
             }
+
+            if (!battleManager.AdvanceOpponentTurnPhase())
+            {
+                Debug.LogWarning("BattleAIService: 배틀 페이즈로 이동하지 못했습니다.");
+                yield break;
+            }
+
+            yield return new WaitForSeconds(ActionDelay);
 
             if (opponent.field != null)
             {
@@ -52,8 +77,7 @@ namespace Battle
                 {
                     CardRuntimeData attacker = attackers[i];
 
-                    if (attacker == null || attacker.fieldPosition != BattleEnums.FieldPosition.FrontLine ||
-                        attacker.cardState != CardEnums.CardState.Active)
+                    if (attacker == null || attacker.fieldPosition != BattleEnums.FieldPosition.FrontLine || attacker.cardState != CardEnums.CardState.Active)
                     {
                         continue;
                     }
@@ -93,7 +117,11 @@ namespace Battle
                 }
             }
 
-            battleManager.EndCurrentTurn();
+            // 배틀 후 엔드 페이즈를 처리하고 내 시작 페이즈로 턴 전달
+            if (!battleManager.AdvanceOpponentTurnPhase() || !battleManager.AdvanceOpponentTurnPhase())
+            {
+                Debug.LogWarning("BattleAIService: AI 턴을 정상적으로 종료하지 못했습니다.");
+            }
         }
 
         #endregion
