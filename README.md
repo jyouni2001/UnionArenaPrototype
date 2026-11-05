@@ -6,7 +6,6 @@ UNION ARENA
 - Unity 6
 - C#
 - Universal Render Pipeline
-- uGUI
 - Git / GitHub
 
 주요 구현 기능
