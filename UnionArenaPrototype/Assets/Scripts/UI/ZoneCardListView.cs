@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using Battle;
 
 namespace UI
@@ -10,6 +11,7 @@ namespace UI
     // 최대 15개의 카드 UI를 생성하고 스크롤 위치에 따라 재사용
     // 실제 CardRuntimeData 목록을 전달받아 카드 이미지를 표시
     // 카드 수에 따라 Content 높이와 스크롤 범위를 자동 조정
+    // 패널 우클릭 및 바깥쪽 좌클릭으로 패널 닫기
     public class ZoneCardListView : MonoBehaviour
     {
         [Header("카드 UI 프리팹")]
@@ -32,6 +34,8 @@ namespace UI
         private readonly List<CardRuntimeData> currentCards = new List<CardRuntimeData>(); // 현재 표시할 카드 데이터
 
         private ScrollRect scrollRect; // 카드 목록 스크롤 관리 객체
+        private RectTransform panelRect; // 카드 목록 패널의 RectTransform
+        private Canvas parentCanvas; // 패널이 속한 Canvas
         private int currentFirstRow = -1; // 현재 화면에서 재사용 중인 첫 번째 행
 
         private int VisibleRowCount => Mathf.CeilToInt((float)maxCardCount / columnCount); // 화면에 유지할 UI 행 개수
@@ -39,7 +43,43 @@ namespace UI
 
         private void Awake()
         {
+            panelRect = GetComponent<RectTransform>(); // 현재 오브젝트의 패널 영역 가져오기
+            parentCanvas = GetComponentInParent<Canvas>(); // 상위 Canvas 가져오기
+
             CreateCardItems();
+        }
+
+        private void Update()
+        {
+            if (!gameObject.activeInHierarchy)
+            {
+                return;
+            }
+
+            Mouse mouse = Mouse.current; // 현재 마우스 입력 장치 가져오기
+
+            if (mouse == null)
+            {
+                return;
+            }
+
+            if (mouse.rightButton.wasPressedThisFrame)
+            {
+                if (IsPointerInsidePanel())
+                {
+                    ClosePanel();
+                }
+
+                return;
+            }
+
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                if (!IsPointerInsidePanel())
+                {
+                    ClosePanel();
+                }
+            }
         }
 
         private void Start()
@@ -278,6 +318,34 @@ namespace UI
             {
                 cardItems[i].SetActive(false); // 모든 카드 UI 비활성화
             }
+        }
+
+        // 마우스 포인터가 카드 목록 패널 내부에 있는지 확인
+        private bool IsPointerInsidePanel()
+        {
+            if (panelRect == null)
+            {
+                return false;
+            }
+
+            Camera uiCamera = null;
+
+            if (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                uiCamera = parentCanvas.worldCamera; // 카메라 기반 Canvas일 때 UI 카메라 사용
+            }
+
+            return RectTransformUtility.RectangleContainsScreenPoint(
+                panelRect,
+                Mouse.current.position.ReadValue(),
+                uiCamera
+            );
+        }
+
+        // 카드 목록 패널 닫기
+        private void ClosePanel()
+        {
+            gameObject.SetActive(false); // 현재 패널 비활성화
         }
     }
 }
